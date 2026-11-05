@@ -28,24 +28,28 @@
   -webkit-font-smoothing: antialiased;
 }
 
-body {
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Lock entire page scroll */
   background: var(--bg);
   color: var(--text-main);
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
 }
 
-/* Header */
+/* Header - Fixed 52px bar */
 header {
+  height: 52px;
+  flex: 0 0 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
+  padding: 0 20px;
   background: #0d121c;
   border-bottom: 1px solid var(--border);
-  z-index: 10;
+  z-index: 20;
 }
 
 .brand {
@@ -124,36 +128,31 @@ header {
   width: 140px;
 }
 
-/* App Grid Layout */
+/* App Grid Layout - Split Pane: 3D Left, Control Panel Right */
 .app-container {
   display: grid;
-  grid-template-columns: 1fr 440px;
-  flex: 1;
-  height: calc(100vh - 55px);
+  grid-template-columns: 1fr 400px;
+  flex: 1 1 0;
+  height: calc(100vh - 52px);
+  min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 900px) {
   .app-container {
-    grid-template-columns: 1fr;
-    height: auto;
+    grid-template-columns: 1fr 340px;
   }
 }
 
-/* 3D Viewport */
+/* 3D Viewport - Left Side (Completely pinned, never scrolls) */
 .viewport-container {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 480px;
-  background: #0c1017;
+  min-height: 0;
+  background: #090c13;
   overflow: hidden;
-}
-
-@media (max-width: 1080px) {
-  .viewport-container {
-    height: 520px;
-  }
 }
 
 #canvas3d {
@@ -182,9 +181,9 @@ header {
 }
 
 .hud-pill {
-  background: rgba(13, 18, 28, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
+  background: rgba(13, 18, 28, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 6px 14px;
   border-radius: 99px;
   font-size: 11px;
@@ -192,6 +191,7 @@ header {
   display: flex;
   align-items: center;
   gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .hud-pill b {
@@ -208,9 +208,9 @@ header {
 }
 
 .tool-btn {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-main);
   padding: 7px 12px;
   border-radius: 8px;
@@ -221,22 +221,46 @@ header {
   align-items: center;
   gap: 6px;
   transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .tool-btn:hover {
   background: #1e293b;
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* Control Sidebar - EXACT match with Image 1 & 2 */
+/* Control Sidebar - Right Side (Distinct separated pane with its OWN scrollbar) */
 .control-panel {
-  background: #0d111a;
-  border-left: 1px solid var(--border);
-  overflow-y: auto;
+  background: #0f131d;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.6);
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto; /* ONLY the control panel scrolls! */
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
+  z-index: 10;
+}
+
+/* Custom Sleek Scrollbar for Control Panel */
+.control-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.control-panel::-webkit-scrollbar-track {
+  background: #0a0d14;
+}
+
+.control-panel::-webkit-scrollbar-thumb {
+  background: #252e42;
+  border-radius: 4px;
+}
+
+.control-panel::-webkit-scrollbar-thumb:hover {
+  background: #374461;
 }
 
 /* Section Header Bar */

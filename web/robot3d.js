@@ -55,10 +55,9 @@ export class Robot3D {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
-    // Scene & Dark Atmosphere
+    // Scene & Dark Atmosphere (No Fog to prevent darkening when zoom out)
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0c1017);
-    this.scene.fog = new THREE.Fog(0x0c1017, 35, 95);
+    this.scene.background = new THREE.Color(0x0c111c);
 
     try {
       const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -70,18 +69,18 @@ export class Robot3D {
       console.warn('RoomEnvironment skipped:', e);
     }
 
-    // Camera - angled to view both Arm and Front Conveyor
-    this.camera = new THREE.PerspectiveCamera(36, w / h, 0.1, 200);
-    this.camera.position.set(0, 18, 32);
+    // Camera - comfortably framed to view both Arm and Conveyor without being oversized
+    this.camera = new THREE.PerspectiveCamera(34, w / h, 0.1, 400);
+    this.camera.position.set(0, 16, 38);
 
     // Orbit Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.07;
-    this.controls.target.set(0, 5, 2);
+    this.controls.target.set(0, 3.5, 0.5);
     this.controls.maxPolarAngle = Math.PI / 2 - 0.03;
-    this.controls.minDistance = 10;
-    this.controls.maxDistance = 75;
+    this.controls.minDistance = 8;
+    this.controls.maxDistance = 140; // Allow wide zoom-out cleanly
 
     // Materials
     this.initMaterials();
@@ -176,51 +175,113 @@ export class Robot3D {
   }
 
   initLights() {
-    const ambient = new THREE.HemisphereLight(0xe0f2fe, 0x0f172a, 0.75);
+    const ambient = new THREE.HemisphereLight(0xe0f2fe, 0x111827, 0.95);
     this.scene.add(ambient);
 
-    const key = new THREE.DirectionalLight(0xffffff, 2.5);
-    key.position.set(16, 26, 20);
+    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    key.position.set(20, 32, 24);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.camera.near = 1;
-    key.shadow.camera.far = 70;
-    key.shadow.camera.left = -20;
-    key.shadow.camera.right = 20;
-    key.shadow.camera.top = 20;
-    key.shadow.camera.bottom = -20;
+    key.shadow.camera.far = 160;
+    key.shadow.camera.left = -30;
+    key.shadow.camera.right = 30;
+    key.shadow.camera.top = 30;
+    key.shadow.camera.bottom = -30;
     key.shadow.bias = -0.0003;
     key.shadow.radius = 3;
     this.scene.add(key);
 
-    const rim = new THREE.DirectionalLight(0x06b6d4, 1.4);
-    rim.position.set(-18, 12, -16);
+    const rim = new THREE.DirectionalLight(0x06b6d4, 1.6);
+    rim.position.set(-22, 16, -20);
     this.scene.add(rim);
 
-    const softFill = new THREE.PointLight(0x38bdf8, 1.2, 35, 1.5);
-    softFill.position.set(0, 8, 8);
+    const softFill = new THREE.PointLight(0x38bdf8, 1.5, 60, 1.2);
+    softFill.position.set(0, 12, 10);
     this.scene.add(softFill);
+
+    // Wide fill light to prevent darkness at extreme zoom-out
+    const zoomFill = new THREE.DirectionalLight(0xffffff, 0.7);
+    zoomFill.position.set(0, 40, 40);
+    this.scene.add(zoomFill);
   }
 
   initFloor() {
-    // Dark floor disc
-    const floorGeo = new THREE.CircleGeometry(55, 64);
+    // 1. High-Tech Industrial Modular Floor Tile Pattern (Motif Kotak Industri)
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Base dark metallic tile
+    ctx.fillStyle = '#0f1420';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Tile border / seams
+    ctx.strokeStyle = '#1e283b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, 252, 252);
+
+    // Inner subtle square inset
+    ctx.strokeStyle = '#151d2d';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(16, 16, 224, 224);
+
+    // Corner industrial bolt/rivet accents
+    ctx.fillStyle = '#38bdf8';
+    const rivets = [
+      [24, 24], [232, 24], [24, 232], [232, 232]
+    ];
+    rivets.forEach(([rx, ry]) => {
+      ctx.beginPath();
+      ctx.arc(rx, ry, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Center subtle crosshair
+    ctx.strokeStyle = '#223049';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(128, 116); ctx.lineTo(128, 140);
+    ctx.moveTo(116, 128); ctx.lineTo(140, 128);
+    ctx.stroke();
+
+    const tileTexture = new THREE.CanvasTexture(canvas);
+    tileTexture.wrapS = THREE.RepeatWrapping;
+    tileTexture.wrapT = THREE.RepeatWrapping;
+    tileTexture.repeat.set(16, 16);
+
+    // Circular main floor with tiled texture
+    const floorGeo = new THREE.CircleGeometry(65, 64);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x0e131d,
-      roughness: 0.85,
-      metalness: 0.2
+      map: tileTexture,
+      roughness: 0.75,
+      metalness: 0.25
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    // Fine industrial floor grid
-    const grid = new THREE.GridHelper(50, 50, 0x223047, 0x141d2b);
-    grid.position.y = 0.01;
+    // 2. High-Tech Cyan Floor Grid Overlay
+    const grid = new THREE.GridHelper(70, 35, 0x0284c7, 0x1e293b);
+    grid.position.y = 0.02;
     grid.material.transparent = true;
-    grid.material.opacity = 0.6;
+    grid.material.opacity = 0.45;
     this.scene.add(grid);
+
+    // 3. Illuminated Workstation Circular Ring around Robot Arm
+    const ringGeo = new THREE.RingGeometry(5.2, 5.5, 64);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x06b6d4,
+      transparent: true,
+      opacity: 0.45,
+      side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(0, 0.03, -4.2);
+    this.scene.add(ring);
   }
 
   // Helper geometry builder
@@ -546,8 +607,8 @@ export class Robot3D {
 
   resetView() {
     this.controls.reset();
-    this.camera.position.set(0, 18, 32);
-    this.controls.target.set(0, 5, 2);
+    this.camera.position.set(0, 16, 38);
+    this.controls.target.set(0, 3.5, 0.5);
   }
 
   resetCargos() {
