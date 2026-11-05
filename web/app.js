@@ -16,8 +16,9 @@ const state = {
   sensor: false
 };
 
-window.addEventListener('DOMContentLoaded', () => {
+function startApp() {
   const container = document.getElementById('canvas3d');
+  if (!container) return;
   robot3d = new Robot3D(container);
 
   // Hook sensor callback from 3D simulator
@@ -46,7 +47,13 @@ window.addEventListener('DOMContentLoaded', () => {
   // Start polling ESP32
   checkConnection();
   pollTimer = setInterval(pollESP32, 700);
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', startApp);
+} else {
+  startApp();
+}
 
 function setupJointSliders() {
   const joints = ['base', 'shoulder', 'elbow', 'gripper'];

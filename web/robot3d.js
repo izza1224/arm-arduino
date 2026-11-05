@@ -3,7 +3,7 @@
  * Built with Three.js (r160)
  */
 
-import * as THREE from './vendor/three.module.js';
+import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { RoomEnvironment } from './vendor/RoomEnvironment.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
@@ -41,7 +41,7 @@ export class Robot3D {
     const h = this.container.clientHeight || 500;
 
     // Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setSize(w, h);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
@@ -53,10 +53,18 @@ export class Robot3D {
 
     // Scene & Environment
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x0c0f16, 0.007);
+    this.scene.background = new THREE.Color(0x090d16);
+    this.scene.fog = new THREE.FogExp2(0x090d16, 0.008);
 
-    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    try {
+      const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+      const roomEnv = new RoomEnvironment();
+      this.scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
+      pmremGenerator.dispose();
+      roomEnv.dispose();
+    } catch (err) {
+      console.warn('RoomEnvironment skipped:', err);
+    }
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 300);
