@@ -479,34 +479,34 @@ export class Robot3D {
     this.beltMesh.receiveShadow = true;
     this.conveyorGroup.add(this.beltMesh);
 
-    // 6. Professional Infrared Sensor positioned at UJUNG Conveyor (far right end)
-    this.sensorStationX = length / 2 - 2.8; // ~11.2 (Ujung conveyor)
-    const sensorGroup = new THREE.Group();
-    sensorGroup.position.set(this.sensorStationX, height + 0.8, -width / 2 - 0.6);
+    // 6. Professional Infrared Sensor (Adjusted inward from extreme tip, in optimal reach zone)
+    this.sensorStationX = 8.2; // Sesuai permintaan: tidak terlalu mentok ke ujung
+    this.sensorGroup = new THREE.Group();
+    this.sensorGroup.position.set(this.sensorStationX, height + 0.8, -width / 2 - 0.6);
 
     // Sensor mounting tower
     const sensorPost = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.8, 16), this.materials.steel);
-    sensorGroup.add(sensorPost);
+    this.sensorGroup.add(sensorPost);
 
     // Sensor barrel
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.2, 16), this.materials.graphite);
     barrel.rotation.x = Math.PI / 2;
     barrel.position.set(0, 0.6, 0.6);
-    sensorGroup.add(barrel);
+    this.sensorGroup.add(barrel);
 
     // Sensor Active Indicator LED
     this.sensorLed = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), this.materials.irLedOff);
     this.sensorLed.position.set(0, 1.0, 0.3);
-    sensorGroup.add(this.sensorLed);
+    this.sensorGroup.add(this.sensorLed);
 
     // Subtle optical beam line across the belt
     const beamGeo = new THREE.CylinderGeometry(0.04, 0.04, width + 0.4, 8);
     beamGeo.rotateX(Math.PI / 2);
     this.beamLine = new THREE.Mesh(beamGeo, this.materials.irBeam);
     this.beamLine.position.set(0, 0.6, width / 2 + 0.2);
-    sensorGroup.add(this.beamLine);
+    this.sensorGroup.add(this.beamLine);
 
-    this.conveyorGroup.add(sensorGroup);
+    this.conveyorGroup.add(this.sensorGroup);
 
     // 7. Multiple Payload White Rounded Blocks (Spaced from start to mid conveyor)
     this.cargoY = height + 0.42 + 1.1;
@@ -514,7 +514,7 @@ export class Robot3D {
     this.conveyorMaxX = length / 2 - 2.0;
 
     // Spawn 3 white rounded cubes spaced along the conveyor
-    const initialPositions = [this.conveyorMinX, -3.5, 4.0];
+    const initialPositions = [this.conveyorMinX, -3.5, 2.5];
     initialPositions.forEach((xPos) => {
       const block = this.createCargoBlock();
       block.position.set(xPos, this.cargoY, 0);
@@ -568,7 +568,7 @@ export class Robot3D {
   }
 
   resetCargos() {
-    const initialPositions = [this.conveyorMinX, -3.5, 4.0];
+    const initialPositions = [this.conveyorMinX, -3.5, 2.5];
     this.cargos.forEach((c, i) => {
       c.position.x = initialPositions[i];
       c.visible = true;
