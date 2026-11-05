@@ -53,10 +53,10 @@
     </div>
   </header>
 
-  <!-- Workspace -->
+  <!-- Workspace Split Pane -->
   <div class="app-container">
     
-    <!-- 3D Canvas Viewport -->
+    <!-- 3D Canvas Viewport (Fixed Left) -->
     <div class="viewport-container">
       <div id="canvas3d"></div>
 
@@ -68,7 +68,7 @@
         </div>
         <div class="hud-pill">
           <span>Sensor IR:</span>
-          <span id="hud_ir_text" style="color:#10b981;font-weight:600">Aktif (Auto-Stop)</span>
+          <span id="hud_ir_text" style="color:#10b981;font-weight:600">Aktif (Ujung Conveyor)</span>
         </div>
       </div>
 
@@ -85,11 +85,20 @@
       </div>
     </div>
 
-    <!-- Control Sidebar (Exactly as in Reference Images 1 & 2) -->
+    <!-- Control Sidebar with 3 TABS (Right Side) -->
     <aside class="control-panel">
       
-      <!-- 1. LENGAN ROBOT (Image 1) -->
-      <section>
+      <!-- Top Navigation Tabs (Exact match with Image 1 & 2) -->
+      <nav class="nav-tabs">
+        <button class="nav-tab-btn active" data-tab="manual">Manual</button>
+        <button class="nav-tab-btn" data-tab="program">Program</button>
+        <button class="nav-tab-btn" data-tab="status">Status</button>
+      </nav>
+
+      <!-- ==============================================
+           TAB 1: MANUAL (Kontrol Manual & Rekam Langkah)
+           ============================================== -->
+      <div class="tab-content active" id="tab_manual">
         <div class="section-title">Lengan Robot</div>
 
         <!-- Base -->
@@ -112,7 +121,7 @@
             <button class="btn-step" data-joint="base" data-delta="-1">-1</button>
             <button class="btn-step" data-joint="base" data-delta="1">+1</button>
             <button class="btn-step" data-joint="base" data-delta="5">+5</button>
-            <button class="btn-langkah base" data-joint="base">&oplus; Langkah</button>
+            <button class="btn-langkah base" data-joint="base" title="Rekam langkah sendi ini">&oplus; Langkah</button>
           </div>
         </div>
 
@@ -136,7 +145,7 @@
             <button class="btn-step" data-joint="siku" data-delta="-1">-1</button>
             <button class="btn-step" data-joint="siku" data-delta="1">+1</button>
             <button class="btn-step" data-joint="siku" data-delta="5">+5</button>
-            <button class="btn-langkah siku" data-joint="siku">&oplus; Langkah</button>
+            <button class="btn-langkah siku" data-joint="siku" title="Rekam langkah sendi ini">&oplus; Langkah</button>
           </div>
         </div>
 
@@ -160,7 +169,7 @@
             <button class="btn-step" data-joint="lengan" data-delta="-1">-1</button>
             <button class="btn-step" data-joint="lengan" data-delta="1">+1</button>
             <button class="btn-step" data-joint="lengan" data-delta="5">+5</button>
-            <button class="btn-langkah lengan" data-joint="lengan">&oplus; Langkah</button>
+            <button class="btn-langkah lengan" data-joint="lengan" title="Rekam langkah sendi ini">&oplus; Langkah</button>
           </div>
         </div>
 
@@ -184,7 +193,7 @@
             <button class="btn-step" data-joint="capit" data-delta="-1">-1</button>
             <button class="btn-step" data-joint="capit" data-delta="1">+1</button>
             <button class="btn-step" data-joint="capit" data-delta="5">+5</button>
-            <button class="btn-langkah capit" data-joint="capit">&oplus; Langkah</button>
+            <button class="btn-langkah capit" data-joint="capit" title="Rekam langkah sendi ini">&oplus; Langkah</button>
           </div>
         </div>
 
@@ -192,12 +201,9 @@
         <button class="btn-home" id="btn_home">
           &#x2302; Kembali ke posisi awal (0&deg;)
         </button>
-      </section>
 
-      <!-- 2. CONVEYOR (Image 2) -->
-      <section>
-        <div class="section-title">Conveyor</div>
-
+        <!-- Conveyor Card -->
+        <div class="section-title" style="margin-top:14px">Conveyor</div>
         <div class="conveyor-card">
           <div class="conveyor-status-bar">
             <div class="conv-state">
@@ -225,7 +231,7 @@
             <span>Balik arah putaran</span>
           </label>
 
-          <!-- Waktu berhenti saat barang terdeteksi -->
+          <!-- Waktu berhenti -->
           <div class="hold-time-block">
             <div class="hold-time-info">
               <h4>Waktu berhenti</h4>
@@ -239,11 +245,13 @@
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- 3. URUTAN LANGKAH (Image 2) -->
-      <section>
-        <div class="section-title">Urutan Langkah</div>
+      <!-- ==============================================
+           TAB 2: PROGRAM (Urutan Langkah & Hasil Rekaman)
+           ============================================== -->
+      <div class="tab-content" id="tab_program">
+        <div class="section-title">Urutan Langkah (Program)</div>
 
         <div class="seq-controls-row">
           <button class="btn-seq-main" id="btn_seq_play">&#9654; Main</button>
@@ -275,10 +283,50 @@
         <!-- Recorded Steps CRUD List -->
         <div id="steps_list">
           <div class="steps-empty">
-            Belum ada langkah.<br>Atur sudut lalu tekan <b>&oplus; Langkah</b> atau <b>+ Tambah</b>.
+            Belum ada langkah.<br>Gunakan tab <b>Manual</b> lalu tekan <b>&oplus; Langkah</b> untuk merekam posisi.
           </div>
         </div>
-      </section>
+      </div>
+
+      <!-- ==============================================
+           TAB 3: STATUS (Telemetri & Log Console)
+           ============================================== -->
+      <div class="tab-content" id="tab_status">
+        <div class="section-title">Telemetri Sistem</div>
+
+        <div class="status-grid">
+          <div class="status-card">
+            <div class="status-card-label">MODE</div>
+            <div class="status-card-val" id="stat_mode">MANUAL</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-label">STEP AKTIF</div>
+            <div class="status-card-val" id="stat_step">-</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-label">SIKLUS SELESAI</div>
+            <div class="status-card-val" id="stat_cycles">0</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-label">CONVEYOR</div>
+            <div class="status-card-val" id="stat_conv">Berhenti</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-label">LATENSI SISTEM</div>
+            <div class="status-card-val" id="stat_lat">-</div>
+          </div>
+          <div class="status-card">
+            <div class="status-card-label">POLL</div>
+            <div class="status-card-val" id="stat_poll">0</div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:14px">Riwayat Aktivitas & Log</div>
+        <div class="status-terminal" id="terminal_logs">
+          <div><span class="log-time">System</span> Inisialisasi controller selesai.</div>
+          <div><span class="log-time">System</span> Mode Simulator siap digunakan.</div>
+        </div>
+      </div>
 
     </aside>
   </div>

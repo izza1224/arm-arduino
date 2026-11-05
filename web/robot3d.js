@@ -91,11 +91,11 @@ export class Robot3D {
     // Floor & Studio Grid
     this.initFloor();
 
-    // Robot Arm - Positioned set back from conveyor for realistic reach
+    // Robot Arm - Positioned at balanced distance (z = -5.0)
     this.robotArm = this.buildRobotArm(false);
     this.ghostArm = this.buildRobotArm(true);
-    this.robotArm.root.position.set(0, 0, -6.0);
-    this.ghostArm.root.position.set(0, 0, -6.0);
+    this.robotArm.root.position.set(0, 0, -5.0);
+    this.ghostArm.root.position.set(0, 0, -5.0);
     this.scene.add(this.robotArm.root);
     this.scene.add(this.ghostArm.root);
 
@@ -236,7 +236,7 @@ export class Robot3D {
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(0, 0.02, -6.0);
+    ring.position.set(0, 0.02, -5.0);
     this.scene.add(ring);
   }
 

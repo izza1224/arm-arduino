@@ -8,6 +8,8 @@ let robot3d = null;
 let isHardwareConnected = false;
 let esp32Url = localStorage.getItem('esp32_url') || 'http://armrobot.local';
 let pollTimer = null;
+let pollCount = 0;
+let completedCycles = 0;
 
 // Joint Names & Styles
 const JOINTS = ['base', 'siku', 'lengan', 'capit'];
@@ -59,6 +61,7 @@ function startApp() {
   };
 
   // Setup Event Listeners
+  setupTabs();
   setupJointControls();
   setupConveyorControls();
   setupSequencerControls();
@@ -76,6 +79,91 @@ if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', startApp);
 } else {
   startApp();
+}
+
+/* ========================================================
+   0. NAVIGATION TABS (Manual, Program, Status)
+   ======================================================== */
+function setupTabs() {
+  const tabBtns = document.querySelectorAll('.nav-tab-btn');
+  tabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      tabBtns.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      document.querySelectorAll('.tab-content').forEach((tc) => {
+        tc.classList.remove('active');
+      });
+
+      const activeContent = document.getElementById(`tab_${tabId}`);
+      if (activeContent) activeContent.classList.add('active');
+    });
+  });
+}
+
+function addLog(msg, type = 'info') {
+  const terminal = document.getElementById('terminal_logs');
+  if (!terminal) return;
+
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}.${String(now.getSeconds()).padStart(2, '0')}`;
+
+  const row = document.createElement('div');
+  const cls = type === 'warn' ? 'log-warn' : (type === 'ok' ? 'log-ok' : '');
+  row.innerHTML = `<span class="log-time">${timeStr}</span> <span class="${cls}">${msg}</span>`;
+
+  terminal.appendChild(row);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function updateTelemetryUI(latencyMs = null) {
+  // Mode
+  const modeElem = document.getElementById('stat_mode');
+  if (modeElem) {
+    if (state.sequencer.playing) modeElem.textContent = 'AUTO';
+    else if (isHardwareConnected) modeElem.textContent = 'MANUAL';
+    else modeElem.textContent = 'SIMULASI';
+  }
+
+  // Active step
+  const stepElem = document.getElementById('stat_step');
+  if (stepElem) {
+    if (state.sequencer.playing && state.sequencer.currentStepIdx >= 0) {
+      stepElem.textContent = `${state.sequencer.currentStepIdx + 1} / ${state.sequencer.steps.length}`;
+    } else {
+      stepElem.textContent = '-';
+    }
+  }
+
+  // Cycles
+  const cycleElem = document.getElementById('stat_cycles');
+  if (cycleElem) cycleElem.textContent = completedCycles;
+
+  // Conveyor status
+  const convElem = document.getElementById('stat_conv');
+  if (convElem) {
+    if (state.conveyor.running) {
+      if (state.conveyor.holdTimer > 0) {
+        convElem.textContent = `Tahan (${state.conveyor.holdTimer}s)`;
+      } else {
+        convElem.textContent = `Jalan (${state.conveyor.speed}%)`;
+      }
+    } else {
+      convElem.textContent = 'Berhenti';
+    }
+  }
+
+  // Latency
+  const latElem = document.getElementById('stat_lat');
+  if (latElem) {
+    if (latencyMs !== null) latElem.textContent = `${latencyMs} ms`;
+    else if (!isHardwareConnected) latElem.textContent = 'Lokal';
+  }
+
+  // Poll
+  const pollElem = document.getElementById('stat_poll');
+  if (pollElem) pollElem.textContent = pollCount;
 }
 
 /* ========================================================
@@ -302,6 +390,10 @@ function addStepDirect(jointIdx, angle) {
   state.sequencer.steps.push(newStep);
   renderStepsList();
 
+  const jointName = JOINT_NAMES[JOINTS[jointIdx]];
+  addLog(`Rekam langkah #${state.sequencer.steps.length}: ${jointName} -> ${angle}&deg; (jeda ${delay}ms)`, 'ok');
+  updateTelemetryUI();
+
   if (isHardwareConnected) {
     sendESP32Command(`/add?s=${jointIdx}&a=${angle}&v=0&j=${delay}`);
   }
@@ -396,6 +488,8 @@ function startSimPlayback() {
   if (state.sequencer.steps.length === 0) return;
   state.sequencer.playing = true;
   state.sequencer.currentStepIdx = 0;
+  addLog('Memulai pemutaran urutan langkah (AUTO)...', 'ok');
+  updateTelemetryUI();
   playNextSimStep();
 }
 
@@ -404,6 +498,8 @@ function playNextSimStep() {
   const steps = state.sequencer.steps;
 
   if (state.sequencer.currentStepIdx >= steps.length) {
+    completedCycles++;
+    addLog(`Siklus urutan #${completedCycles} selesai!`, 'ok');
     if (state.sequencer.loop) {
       state.sequencer.currentStepIdx = 0;
     } else {
@@ -415,9 +511,11 @@ function playNextSimStep() {
   const idx = state.sequencer.currentStepIdx;
   const st = steps[idx];
   renderStepsList();
+  updateTelemetryUI();
 
   const jointKey = JOINTS[st[0]];
   setJointAngle(jointKey, st[1]);
+  addLog(`Jalankan langkah ${idx + 1}/${steps.length}: ${JOINT_NAMES[jointKey]} -> ${st[1]}&deg;`);
 
   const stepDelay = (st[3] || 800) + 400;
   simPlayTimer = setTimeout(() => {
@@ -431,6 +529,8 @@ function stopSimPlayback() {
   state.sequencer.currentStepIdx = -1;
   clearTimeout(simPlayTimer);
   renderStepsList();
+  updateTelemetryUI();
+  addLog('Pemutaran langkah dihentikan.');
 }
 
 /* ========================================================
@@ -485,17 +585,22 @@ async function checkConnection() {
 }
 
 async function pollESP32() {
+  pollCount++;
+  updateTelemetryUI();
   if (!esp32Url) return;
 
+  const tStart = performance.now();
   try {
     const res = await fetch(`${esp32Url}/api`);
     if (!res.ok) throw new Error();
+    const lat = Math.round(performance.now() - tStart);
     const data = await res.json();
 
     if (!isHardwareConnected) {
       isHardwareConnected = true;
       document.getElementById('conn_badge').className = 'conn-status';
       document.getElementById('conn_text').textContent = 'ESP32 Online';
+      addLog('Koneksi ke ESP32 terhubung (Online).', 'ok');
     }
 
     // Sync angles
@@ -530,11 +635,15 @@ async function pollESP32() {
       state.sequencer.currentStepIdx = data.idx || 0;
       renderStepsList();
     }
+
+    updateTelemetryUI(lat);
   } catch (e) {
     if (isHardwareConnected) {
       isHardwareConnected = false;
       document.getElementById('conn_badge').className = 'conn-status offline';
       document.getElementById('conn_text').textContent = 'Demo Simulator (Offline)';
+      addLog('Koneksi ke ESP32 terputus. Beralih ke Simulator.', 'warn');
+      updateTelemetryUI();
     }
   }
 }
