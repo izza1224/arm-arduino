@@ -479,8 +479,8 @@ export class Robot3D {
     this.beltMesh.receiveShadow = true;
     this.conveyorGroup.add(this.beltMesh);
 
-    // 6. Professional Infrared Sensor (Positioned comfortably to the left in working range)
-    this.sensorStationX = 4.8; // Agak ke kiri sesuai permintaan
+    // 6. Professional Infrared Sensor (Di ujung conveyor sisi kanan dekat motor)
+    this.sensorStationX = 10.5; // Di ujung conveyor sisi kanan seperti awal
     this.sensorGroup = new THREE.Group();
     this.sensorGroup.position.set(this.sensorStationX, height + 0.8, -width / 2 - 0.6);
 
@@ -578,7 +578,7 @@ export class Robot3D {
   }
 
   resetCargos() {
-    const initialPositions = [this.conveyorMinX, -4.5, 0.5];
+    const initialPositions = [this.conveyorMinX, -3.5, 3.5];
     this.cargos.forEach((c, i) => {
       c.position.x = initialPositions[i];
       c.visible = true;
