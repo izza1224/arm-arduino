@@ -508,25 +508,22 @@ export class Robot3D {
 
     this.conveyorGroup.add(this.sensorGroup);
 
-    // 7. Multiple Payload White Rounded Blocks (Spaced from start to mid conveyor)
-    this.cargoY = height + 0.42 + 1.1;
+    // 7. Single Payload White Cube (1 Kotak Saja, Ukuran Proporsional Pas Dicapit)
+    const boxSize = 1.1;
+    this.cargoY = height + 0.42 + boxSize / 2;
     this.conveyorMinX = -length / 2 + 2.5;
     this.conveyorMaxX = length / 2 - 2.0;
 
-    // Spawn 3 white rounded cubes spaced along the conveyor
-    const initialPositions = [this.conveyorMinX, -4.5, 0.5];
-    initialPositions.forEach((xPos) => {
-      const block = this.createCargoBlock();
-      block.position.set(xPos, this.cargoY, 0);
-      this.conveyorGroup.add(block);
-      this.cargos.push(block);
-    });
+    const block = this.createCargoBlock(boxSize);
+    block.position.set(this.conveyorMinX, this.cargoY, 0);
+    this.conveyorGroup.add(block);
+    this.cargos = [block];
 
     this.scene.add(this.conveyorGroup);
   }
 
-  createCargoBlock() {
-    const geo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
+  createCargoBlock(size = 1.1) {
+    const geo = new THREE.BoxGeometry(size, size, size);
     const m = new THREE.Mesh(geo, this.materials.cargoMat);
     m.castShadow = true;
     m.receiveShadow = true;
@@ -578,11 +575,10 @@ export class Robot3D {
   }
 
   resetCargos() {
-    const initialPositions = [this.conveyorMinX, -3.5, 3.5];
-    this.cargos.forEach((c, i) => {
-      c.position.x = initialPositions[i];
-      c.visible = true;
-    });
+    if (this.cargos[0]) {
+      this.cargos[0].position.set(this.conveyorMinX, this.cargoY, 0);
+      this.cargos[0].visible = true;
+    }
     this.sensorTriggered = false;
     this.sensorLed.material = this.materials.irLedOff;
     this.conveyor.isHolding = false;
@@ -609,11 +605,11 @@ export class Robot3D {
     // >0 deg s/d 180 deg = Menunduk/menghadap maju ke DEPAN conveyor
     arm.elbow.rotation.z = (90 - angles.elbow) * deg2rad;
 
-    // Joint 3: Gripper (0 = open wide, 100/180 = closed)
+    // Joint 3: Gripper (0 = open wide 1.6 unit gap, 120 = clamped onto 1.1 unit box)
     const gripRatio = Math.min(1.0, Math.max(0.0, angles.gripper / 120.0));
     arm.fingers.forEach((f) => {
       const side = f.userData.side;
-      f.position.z = side * (0.6 - gripRatio * 0.45);
+      f.position.z = side * (0.8 - gripRatio * 0.65);
     });
   }
 
