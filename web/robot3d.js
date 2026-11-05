@@ -92,11 +92,11 @@ export class Robot3D {
     // Floor & Studio Grid
     this.initFloor();
 
-    // Robot Arm - Positioned at Center
+    // Robot Arm - Positioned slightly set back from conveyor for realistic reach
     this.robotArm = this.buildRobotArm(false);
     this.ghostArm = this.buildRobotArm(true);
-    this.robotArm.root.position.set(0, 0, -2);
-    this.ghostArm.root.position.set(0, 0, -2);
+    this.robotArm.root.position.set(0, 0, -4.2);
+    this.ghostArm.root.position.set(0, 0, -4.2);
     this.scene.add(this.robotArm.root);
     this.scene.add(this.ghostArm.root);
 
@@ -462,8 +462,8 @@ export class Robot3D {
     this.beltMesh.receiveShadow = true;
     this.conveyorGroup.add(this.beltMesh);
 
-    // 6. Professional Infrared Sensor at Pickup Point (center/front pickup point: x = 0.5)
-    this.sensorStationX = 1.0;
+    // 6. Professional Infrared Sensor positioned at UJUNG Conveyor (far right end)
+    this.sensorStationX = length / 2 - 2.8; // ~11.2 (Ujung conveyor)
     const sensorGroup = new THREE.Group();
     sensorGroup.position.set(this.sensorStationX, height + 0.8, -width / 2 - 0.6);
 
@@ -491,13 +491,13 @@ export class Robot3D {
 
     this.conveyorGroup.add(sensorGroup);
 
-    // 7. Multiple Payload White Rounded Blocks (Exactly as in Reference Image 3)
+    // 7. Multiple Payload White Rounded Blocks (Spaced from start to mid conveyor)
     this.cargoY = height + 0.42 + 1.1;
     this.conveyorMinX = -length / 2 + 2.5;
-    this.conveyorMaxX = length / 2 - 2.5;
+    this.conveyorMaxX = length / 2 - 2.0;
 
     // Spawn 3 white rounded cubes spaced along the conveyor
-    const initialPositions = [this.conveyorMinX, -2.5, 6.0];
+    const initialPositions = [this.conveyorMinX, -3.5, 4.0];
     initialPositions.forEach((xPos) => {
       const block = this.createCargoBlock();
       block.position.set(xPos, this.cargoY, 0);
@@ -551,7 +551,7 @@ export class Robot3D {
   }
 
   resetCargos() {
-    const initialPositions = [this.conveyorMinX, -2.5, 6.0];
+    const initialPositions = [this.conveyorMinX, -3.5, 4.0];
     this.cargos.forEach((c, i) => {
       c.position.x = initialPositions[i];
       c.visible = true;
@@ -566,8 +566,11 @@ export class Robot3D {
     if (!arm) return;
     const deg2rad = Math.PI / 180;
 
-    // Joint 0: Base Yaw (0 to 180, centered around 90)
-    arm.yaw.rotation.y = -(angles.base - 90) * deg2rad;
+    // Joint 0: Base Yaw
+    // 0 deg = Hadap KIRI (-X)
+    // 90 deg = Hadap DEPAN (+Z, ke arah conveyor)
+    // 180 deg = Hadap KANAN (+X)
+    arm.yaw.rotation.y = (180 + angles.base) * deg2rad;
 
     // Joint 1: Shoulder Pitch
     arm.shoulder.rotation.z = (angles.shoulder - 0) * deg2rad * 0.7;
