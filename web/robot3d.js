@@ -91,11 +91,11 @@ export class Robot3D {
     // Floor & Studio Grid
     this.initFloor();
 
-    // Robot Arm - Positioned slightly set back from conveyor for realistic reach
+    // Robot Arm - Positioned set back from conveyor for realistic reach
     this.robotArm = this.buildRobotArm(false);
     this.ghostArm = this.buildRobotArm(true);
-    this.robotArm.root.position.set(0, 0, -4.2);
-    this.ghostArm.root.position.set(0, 0, -4.2);
+    this.robotArm.root.position.set(0, 0, -6.0);
+    this.ghostArm.root.position.set(0, 0, -6.0);
     this.scene.add(this.robotArm.root);
     this.scene.add(this.ghostArm.root);
 
@@ -207,80 +207,36 @@ export class Robot3D {
   }
 
   initFloor() {
-    // 1. High-Tech Industrial Modular Floor Tile Pattern (Motif Kotak Industri)
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-
-    // Base dark metallic tile
-    ctx.fillStyle = '#0f1420';
-    ctx.fillRect(0, 0, 256, 256);
-
-    // Tile border / seams
-    ctx.strokeStyle = '#1e283b';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, 252, 252);
-
-    // Inner subtle square inset
-    ctx.strokeStyle = '#151d2d';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(16, 16, 224, 224);
-
-    // Corner industrial bolt/rivet accents
-    ctx.fillStyle = '#38bdf8';
-    const rivets = [
-      [24, 24], [232, 24], [24, 232], [232, 232]
-    ];
-    rivets.forEach(([rx, ry]) => {
-      ctx.beginPath();
-      ctx.arc(rx, ry, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // Center subtle crosshair
-    ctx.strokeStyle = '#223049';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(128, 116); ctx.lineTo(128, 140);
-    ctx.moveTo(116, 128); ctx.lineTo(140, 128);
-    ctx.stroke();
-
-    const tileTexture = new THREE.CanvasTexture(canvas);
-    tileTexture.wrapS = THREE.RepeatWrapping;
-    tileTexture.wrapT = THREE.RepeatWrapping;
-    tileTexture.repeat.set(16, 16);
-
-    // Circular main floor with tiled texture
-    const floorGeo = new THREE.CircleGeometry(65, 64);
+    // Clean Dark Floor Disc (Original style)
+    const floorGeo = new THREE.CircleGeometry(55, 64);
     const floorMat = new THREE.MeshStandardMaterial({
-      map: tileTexture,
-      roughness: 0.75,
-      metalness: 0.25
+      color: 0x0e131d,
+      roughness: 0.85,
+      metalness: 0.2
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    // 2. High-Tech Cyan Floor Grid Overlay
-    const grid = new THREE.GridHelper(70, 35, 0x0284c7, 0x1e293b);
-    grid.position.y = 0.02;
+    // Fine industrial floor grid
+    const grid = new THREE.GridHelper(50, 50, 0x223047, 0x141d2b);
+    grid.position.y = 0.01;
     grid.material.transparent = true;
-    grid.material.opacity = 0.45;
+    grid.material.opacity = 0.6;
     this.scene.add(grid);
 
-    // 3. Illuminated Workstation Circular Ring around Robot Arm
-    const ringGeo = new THREE.RingGeometry(5.2, 5.5, 64);
+    // Accent status circle around robot
+    const ringGeo = new THREE.RingGeometry(4.8, 5.0, 64);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x06b6d4,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.4,
       side: THREE.DoubleSide
     });
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(0, 0.03, -4.2);
+    ring.position.set(0, 0.02, -6.0);
     this.scene.add(ring);
   }
 
@@ -633,11 +589,15 @@ export class Robot3D {
     // 180 deg = Hadap KANAN (+X)
     arm.yaw.rotation.y = (180 + angles.base) * deg2rad;
 
-    // Joint 1: Shoulder Pitch
-    arm.shoulder.rotation.z = (angles.shoulder - 0) * deg2rad * 0.7;
+    // Joint 1: Siku (Shoulder Pitch)
+    // 0 deg = Tegak lurus ke atas (upright)
+    // >0 deg s/d 180 deg = Menekuk maju menghadap ke DEPAN conveyor
+    arm.shoulder.rotation.z = -(angles.shoulder * deg2rad * 0.85);
 
-    // Joint 2: Elbow Pitch
-    arm.elbow.rotation.z = -(angles.elbow - 0) * deg2rad * 0.7;
+    // Joint 2: Lengan Atas (Elbow Pitch)
+    // 0 deg = Hadap lurus ke ATAS (vertikal tegak)
+    // >0 deg s/d 180 deg = Menunduk/menghadap maju ke DEPAN conveyor
+    arm.elbow.rotation.z = (90 - angles.elbow) * deg2rad;
 
     // Joint 3: Gripper (0 = open wide, 100/180 = closed)
     const gripRatio = Math.min(1.0, Math.max(0.0, angles.gripper / 120.0));
