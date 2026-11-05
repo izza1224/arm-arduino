@@ -479,8 +479,8 @@ export class Robot3D {
     this.beltMesh.receiveShadow = true;
     this.conveyorGroup.add(this.beltMesh);
 
-    // 6. Professional Infrared Sensor (Adjusted inward from extreme tip, in optimal reach zone)
-    this.sensorStationX = 8.2; // Sesuai permintaan: tidak terlalu mentok ke ujung
+    // 6. Professional Infrared Sensor (Positioned comfortably to the left in working range)
+    this.sensorStationX = 4.8; // Agak ke kiri sesuai permintaan
     this.sensorGroup = new THREE.Group();
     this.sensorGroup.position.set(this.sensorStationX, height + 0.8, -width / 2 - 0.6);
 
@@ -514,7 +514,7 @@ export class Robot3D {
     this.conveyorMaxX = length / 2 - 2.0;
 
     // Spawn 3 white rounded cubes spaced along the conveyor
-    const initialPositions = [this.conveyorMinX, -3.5, 2.5];
+    const initialPositions = [this.conveyorMinX, -4.5, 0.5];
     initialPositions.forEach((xPos) => {
       const block = this.createCargoBlock();
       block.position.set(xPos, this.cargoY, 0);
@@ -561,14 +561,24 @@ export class Robot3D {
     this.conveyor.holdSeconds = Math.max(0, sec);
   }
 
-  resetView() {
-    this.controls.reset();
-    this.camera.position.set(0, 16, 38);
+  setView(mode) {
+    const views = {
+      iso: [26, 20, 32],
+      front: [0, 14, 40],
+      side: [42, 12, 0],
+      top: [0.01, 48, 2]
+    };
+    const target = views[mode] || views.iso;
+    this.cameraGoal = new THREE.Vector3(...target);
     this.controls.target.set(0, 3.5, 0.5);
   }
 
+  resetView() {
+    this.setView('iso');
+  }
+
   resetCargos() {
-    const initialPositions = [this.conveyorMinX, -3.5, 2.5];
+    const initialPositions = [this.conveyorMinX, -4.5, 0.5];
     this.cargos.forEach((c, i) => {
       c.position.x = initialPositions[i];
       c.visible = true;
@@ -690,6 +700,15 @@ export class Robot3D {
             }
           });
         }
+      }
+    }
+
+    // Smooth Camera Transition to View Presets
+    if (this.cameraGoal) {
+      this.camera.position.lerp(this.cameraGoal, dt * 5);
+      if (this.camera.position.distanceTo(this.cameraGoal) < 0.1) {
+        this.camera.position.copy(this.cameraGoal);
+        this.cameraGoal = null;
       }
     }
 

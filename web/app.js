@@ -292,19 +292,26 @@ function sendConveyorConfig() {
 function updateConveyorStatusUI() {
   const dot = document.getElementById('conv_dot');
   const txt = document.getElementById('conv_status_text');
+  const pillBadge = document.getElementById('conv_pill_badge');
 
+  let stateStr = 'Conveyor berhenti';
   if (state.conveyor.running) {
     if (state.conveyor.holdTimer > 0) {
       dot.style.color = '#f59e0b';
       txt.textContent = `Berhenti (${state.conveyor.holdTimer} dtk lagi)`;
+      stateStr = `Conveyor berhenti (${state.conveyor.holdTimer}s)`;
     } else {
       dot.style.color = '#10b981';
       txt.textContent = 'Berjalan';
+      stateStr = `Conveyor berjalan (${state.conveyor.speed}%)`;
     }
   } else {
     dot.style.color = '#64748b';
     txt.textContent = 'Berhenti';
+    stateStr = 'Conveyor berhenti';
   }
+
+  if (pillBadge) pillBadge.textContent = stateStr;
 }
 
 function updateSensorUI(isDetected) {
@@ -552,13 +559,21 @@ function setupConnectionControls() {
 }
 
 function setupViewportTools() {
-  document.getElementById('btn_reset_view').addEventListener('click', () => {
-    robot3d.resetView();
+  document.querySelectorAll('.view-btn[data-view]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.view-btn[data-view]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      const v = btn.dataset.view;
+      robot3d.setView(v);
+    });
   });
 
-  document.getElementById('btn_reset_cargo').addEventListener('click', () => {
-    robot3d.resetCargos();
-  });
+  const resetCargoBtn = document.getElementById('btn_reset_cargo');
+  if (resetCargoBtn) {
+    resetCargoBtn.addEventListener('click', () => {
+      robot3d.resetCargos();
+    });
+  }
 }
 
 async function checkConnection() {

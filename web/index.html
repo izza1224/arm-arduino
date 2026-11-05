@@ -56,32 +56,27 @@
   <!-- Workspace Split Pane -->
   <div class="app-container">
     
-    <!-- 3D Canvas Viewport (Fixed Left) -->
+    <!-- 3D Canvas Viewport (Fixed Left, Card Frame) -->
     <div class="viewport-container">
       <div id="canvas3d"></div>
 
-      <!-- HUD Overlay -->
-      <div class="viewport-overlay">
-        <div class="hud-pill">
-          <span>Model:</span>
-          <b>Cyan/White Industrial 4-DOF + Front Conveyor</b>
-        </div>
-        <div class="hud-pill">
-          <span>Sensor IR:</span>
-          <span id="hud_ir_text" style="color:#10b981;font-weight:600">Aktif (Ujung Conveyor)</span>
-        </div>
+      <!-- Top Right Views Toolbar (Iso, Depan, Samping, Atas - Exact match with reference) -->
+      <div class="views-bar">
+        <button class="view-btn active" data-view="iso">Iso</button>
+        <button class="view-btn" data-view="front">Depan</button>
+        <button class="view-btn" data-view="side">Samping</button>
+        <button class="view-btn" data-view="top">Atas</button>
+        <button class="view-btn" id="btn_reset_cargo" title="Reset Balok Kargo">&#x21bb; Balok</button>
       </div>
 
-      <!-- Viewport Tools -->
-      <div class="viewport-tools">
-        <button class="tool-btn" id="btn_reset_view" title="Reset Sudut Kamera">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-          Reset Kamera
-        </button>
-        <button class="tool-btn" id="btn_reset_cargo" title="Kembalikan Posisi Balok Kargo">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-          Reset Balok Kargo
-        </button>
+      <!-- Bottom Bar: Legend & Conveyor State Pill -->
+      <div class="viewer-bottom-bar">
+        <div class="viewer-legend">
+          <div class="legend-item"><span style="width:8px;height:8px;border-radius:50%;background:#06b6d4;display:inline-block"></span> <span>Posisi aktual</span></div>
+          <div class="legend-item"><span style="width:8px;height:8px;border-radius:2px;background:#38bdf8;opacity:0.6;display:inline-block"></span> <span>Target</span></div>
+          <span>drag = putar &bull; scroll = zoom &bull; klik kanan = geser</span>
+        </div>
+        <div class="conv-pill-badge" id="conv_pill_badge">Conveyor berhenti</div>
       </div>
     </div>
 
