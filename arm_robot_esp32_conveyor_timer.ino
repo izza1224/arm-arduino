@@ -179,6 +179,9 @@ void playTick() {
 
 // ---------- web ----------
 void sendState() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
   String j = "{\"pos\":[";
   for (int i = 0; i < 4; i++) { j += pos[i]; if (i < 3) j += ","; }
   j += "],\"tgt\":[";
@@ -448,6 +451,7 @@ setInterval(()=>api('/api'),700);
 )rawliteral";
 
 void setupRoutes() {
+  server.enableCORS(true);
   server.on("/", []() { server.send_P(200, "text/html", HALAMAN); });
   server.on("/api", sendState);
 
