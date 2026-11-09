@@ -597,6 +597,16 @@ function setupViewportTools() {
   }
 }
 
+function makeTargetUrl(path) {
+  const full = `${esp32Url}${path}`;
+  // Jika halaman dibuka via local server port 8000, gunakan proxy internal agar bebas CORS & PNA
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isLocal && window.location.port === '8000') {
+    return `/proxy?url=${encodeURIComponent(full)}`;
+  }
+  return full;
+}
+
 async function checkConnection() {
   const badge = document.getElementById('conn_badge');
   const text = document.getElementById('conn_text');
@@ -604,10 +614,15 @@ async function checkConnection() {
   try {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), 3500);
-    const res = await fetch(`${esp32Url}/api`, { signal: controller.signal });
+    let res = null;
+    try {
+      res = await fetch(makeTargetUrl('/api'), { signal: controller.signal });
+    } catch (_) {
+      res = await fetch(`${esp32Url}/api`, { signal: controller.signal });
+    }
     clearTimeout(id);
 
-    if (res.ok) {
+    if (res && res.ok) {
       isHardwareConnected = true;
       if (badge) badge.className = 'conn-status';
       if (text) text.textContent = 'ESP32 Online';
@@ -630,8 +645,13 @@ async function pollESP32() {
 
   const tStart = performance.now();
   try {
-    const res = await fetch(`${esp32Url}/api`);
-    if (!res.ok) throw new Error();
+    let res = null;
+    try {
+      res = await fetch(makeTargetUrl('/api'));
+    } catch (_) {
+      res = await fetch(`${esp32Url}/api`);
+    }
+    if (!res || !res.ok) throw new Error();
     const lat = Math.round(performance.now() - tStart);
     const data = await res.json();
 
@@ -689,7 +709,9 @@ async function pollESP32() {
 
 function sendESP32Command(path) {
   if (!esp32Url) return;
-  fetch(`${esp32Url}${path}`).catch((err) => {
-    console.warn(`Gagal kirim ${path} ke ${esp32Url}:`, err);
+  fetch(makeTargetUrl(path)).catch(() => {
+    fetch(`${esp32Url}${path}`).catch((err) => {
+      console.warn(`Gagal kirim ${path} ke ${esp32Url}:`, err);
+    });
   });
 }

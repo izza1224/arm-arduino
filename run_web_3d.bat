@@ -13,6 +13,10 @@ echo.
 :: Buka browser setelah jeda 1.5 detik agar server siap menerima koneksi
 start "" powershell -NoProfile -Command "Start-Sleep -Milliseconds 1500; Start-Process 'http://localhost:8000/web/'"
 
-:: Jalankan python HTTP server
-python -m http.server 8000
+:: Jalankan python HTTP server dengan reverse-proxy untuk bypass CORS browser
+python server.py
+if errorlevel 1 (
+  echo Server script gagal, beralih ke python http.server bawaan...
+  python -m http.server 8000
+)
 pause
