@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-Local Server with Reverse Proxy for ESP32 Robot Arm & Conveyor
-Solves Chrome Private Network Access (PNA) and CORS restrictions seamlessly.
+High-Performance Multi-Threaded Local Server with Reverse Proxy
+Bypasses Chrome Private Network Access (PNA) and CORS blocks seamlessly.
 """
 
 import http.server
-import socketserver
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -29,6 +28,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(200)
+        self.send_header("Content-Length", "0")
         self.end_headers()
 
     def do_GET(self):
@@ -40,32 +40,42 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                     target_url,
                     headers={"User-Agent": "ArmRobotWebTwin/1.0"}
                 )
-                with urllib.request.urlopen(req, timeout=3.5) as resp:
+                with urllib.request.urlopen(req, timeout=3.0) as resp:
                     data = resp.read()
                     self.send_response(resp.status)
                     content_type = resp.headers.get("Content-Type", "application/json")
                     self.send_header("Content-Type", content_type)
+                    self.send_header("Content-Length", str(len(data)))
+                    self.send_header("Connection", "close")
                     self.end_headers()
                     self.wfile.write(data)
+                    self.wfile.flush()
             except Exception as e:
+                err_body = f'{{"error": "{str(e)}"}}\n'.encode("utf-8")
                 self.send_response(502)
                 self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(err_body)))
+                self.send_header("Connection", "close")
                 self.end_headers()
-                self.wfile.write(f'{{"error": "{str(e)}"}}\n'.encode("utf-8"))
+                self.wfile.write(err_body)
+                self.wfile.flush()
             return
 
         super().do_GET()
 
 def main():
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), ProxyHandler) as httpd:
-        print("=" * 60)
-        print(f"  Arm Robot 3D Twin Server & Proxy running on http://localhost:{PORT}/web/")
-        print("=" * 60)
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\nServer dihentikan.")
+    server_address = ("", PORT)
+    httpd = http.server.ThreadingHTTPServer(server_address, ProxyHandler)
+    httpd.daemon_threads = True
+    print("=" * 60)
+    print(f"  Arm Robot 3D Twin Server & Proxy running on http://localhost:{PORT}/web/")
+    print("=" * 60)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nServer dihentikan.")
+    finally:
+        httpd.server_close()
 
 if __name__ == "__main__":
     main()
