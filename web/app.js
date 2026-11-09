@@ -6,10 +6,10 @@ import { Robot3D } from './robot3d.js';
 
 let robot3d = null;
 let isHardwareConnected = false;
-let esp32Url = localStorage.getItem('esp32_url') || 'http://armrobot.local';
-// Jika URL sebelumnya masih dummy IP contoh, ganti langsung ke armrobot.local
-if (esp32Url.includes('192.168.43.120')) {
-  esp32Url = 'http://armrobot.local';
+let esp32Url = localStorage.getItem('esp32_url') || 'http://10.108.123.171';
+// Gunakan IP asli ESP32 yang aktif di jaringan
+if (!esp32Url || esp32Url.includes('armrobot.local') || esp32Url.includes('192.168.43.120')) {
+  esp32Url = 'http://10.108.123.171';
   localStorage.setItem('esp32_url', esp32Url);
 }
 let pollTimer = null;
