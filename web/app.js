@@ -7,6 +7,11 @@ import { Robot3D } from './robot3d.js';
 let robot3d = null;
 let isHardwareConnected = false;
 let esp32Url = localStorage.getItem('esp32_url') || 'http://armrobot.local';
+// Jika URL sebelumnya masih dummy IP contoh, ganti langsung ke armrobot.local
+if (esp32Url.includes('192.168.43.120')) {
+  esp32Url = 'http://armrobot.local';
+  localStorage.setItem('esp32_url', esp32Url);
+}
 let pollTimer = null;
 let pollCount = 0;
 let completedCycles = 0;
@@ -200,7 +205,7 @@ function setupJointControls() {
   // "Kembali ke posisi awal (0°)"
   document.getElementById('btn_home').addEventListener('click', () => {
     JOINTS.forEach((j) => setJointAngle(j, 0));
-    if (isHardwareConnected) sendESP32Command('/home');
+    sendESP32Command('/home');
   });
 }
 
@@ -220,9 +225,9 @@ function setJointAngle(joint, angle) {
   if (!isHardwareConnected) {
     state.pos[joint] = angle;
     robot3d.setActualAngles(state.tgt.base, state.tgt.siku, state.tgt.lengan, state.tgt.capit);
-  } else {
-    sendESP32Command(`/set?i=${JOINT_IDX[joint]}&a=${angle}`);
   }
+  // Selalu kirim sinyal ke ESP32
+  sendESP32Command(`/set?i=${JOINT_IDX[joint]}&a=${angle}`);
 }
 
 /* ========================================================
@@ -242,14 +247,14 @@ function setupConveyorControls() {
     state.conveyor.running = true;
     robot3d.setConveyor(true, state.conveyor.speed, state.conveyor.reverse, state.conveyor.holdSec);
     updateConveyorStatusUI();
-    if (isHardwareConnected) sendESP32Command('/kv?on=1');
+    sendESP32Command('/kv?on=1');
   });
 
   btnStop.addEventListener('click', () => {
     state.conveyor.running = false;
     robot3d.setConveyor(false, state.conveyor.speed, state.conveyor.reverse, state.conveyor.holdSec);
     updateConveyorStatusUI();
-    if (isHardwareConnected) sendESP32Command('/kv?on=0');
+    sendESP32Command('/kv?on=0');
   });
 
   slSpd.addEventListener('input', (e) => {
@@ -545,17 +550,33 @@ function stopSimPlayback() {
    ======================================================== */
 function setupConnectionControls() {
   const ipInput = document.getElementById('ip_input');
-  ipInput.value = esp32Url;
+  const btnConnect = document.getElementById('btn_connect');
+  if (ipInput) ipInput.value = esp32Url;
 
-  ipInput.addEventListener('change', () => {
+  const applyUrl = () => {
     let url = ipInput.value.trim();
+    if (!url) url = 'http://armrobot.local';
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'http://' + url;
     }
+    url = url.replace(/\/+$/, '');
     esp32Url = url;
+    ipInput.value = url;
     localStorage.setItem('esp32_url', url);
+    addLog(`Mencoba menyambung ke ESP32 (${url})...`);
     checkConnection();
-  });
+  };
+
+  if (ipInput) {
+    ipInput.addEventListener('change', applyUrl);
+    ipInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') applyUrl();
+    });
+  }
+
+  if (btnConnect) {
+    btnConnect.addEventListener('click', applyUrl);
+  }
 }
 
 function setupViewportTools() {
@@ -582,21 +603,24 @@ async function checkConnection() {
 
   try {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 1200);
+    const id = setTimeout(() => controller.abort(), 3500);
     const res = await fetch(`${esp32Url}/api`, { signal: controller.signal });
     clearTimeout(id);
 
     if (res.ok) {
       isHardwareConnected = true;
-      badge.className = 'conn-status';
-      text.textContent = 'ESP32 Online';
+      if (badge) badge.className = 'conn-status';
+      if (text) text.textContent = 'ESP32 Online';
+      addLog(`Berhasil terhubung ke ESP32 (${esp32Url})!`, 'ok');
       return;
     }
-  } catch (err) {}
+  } catch (err) {
+    console.warn('Check connection error:', err);
+  }
 
   isHardwareConnected = false;
-  badge.className = 'conn-status offline';
-  text.textContent = 'Demo Simulator (Offline)';
+  if (badge) badge.className = 'conn-status offline';
+  if (text) text.textContent = 'Demo Simulator (Offline)';
 }
 
 async function pollESP32() {
@@ -664,6 +688,8 @@ async function pollESP32() {
 }
 
 function sendESP32Command(path) {
-  if (!isHardwareConnected && !esp32Url) return;
-  fetch(`${esp32Url}${path}`).catch(() => {});
+  if (!esp32Url) return;
+  fetch(`${esp32Url}${path}`).catch((err) => {
+    console.warn(`Gagal kirim ${path} ke ${esp32Url}:`, err);
+  });
 }
