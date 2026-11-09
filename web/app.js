@@ -555,7 +555,7 @@ function setupConnectionControls() {
 
   const applyUrl = () => {
     let url = ipInput.value.trim();
-    if (!url) url = 'http://armrobot.local';
+    if (!url) url = 'http://10.108.123.171';
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'http://' + url;
     }
@@ -563,7 +563,7 @@ function setupConnectionControls() {
     esp32Url = url;
     ipInput.value = url;
     localStorage.setItem('esp32_url', url);
-    addLog(`Mencoba menyambung ke ESP32 (${url})...`);
+    addLog(`Menyambungkan ke ESP32 (${url})...`);
     checkConnection();
   };
 
@@ -599,9 +599,9 @@ function setupViewportTools() {
 
 function makeTargetUrl(path) {
   const full = `${esp32Url}${path}`;
-  // Jika halaman dibuka via local server port 8000, gunakan proxy internal agar bebas CORS & PNA
+  // Jika dibuka di browser laptop via local server, lewatkan reverse-proxy server.py untuk bypass CORS & PNA
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  if (isLocal && window.location.port === '8000') {
+  if (isLocal) {
     return `/proxy?url=${encodeURIComponent(full)}`;
   }
   return full;
@@ -611,13 +611,17 @@ async function checkConnection() {
   const badge = document.getElementById('conn_badge');
   const text = document.getElementById('conn_text');
 
+  if (text) text.textContent = 'Menyambungkan...';
+
   try {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 3500);
+    const id = setTimeout(() => controller.abort(), 4000);
+    const target = makeTargetUrl('/api');
     let res = null;
     try {
-      res = await fetch(makeTargetUrl('/api'), { signal: controller.signal });
-    } catch (_) {
+      res = await fetch(target, { signal: controller.signal });
+    } catch (e1) {
+      console.warn('[Proxy failed, trying direct]:', e1);
       res = await fetch(`${esp32Url}/api`, { signal: controller.signal });
     }
     clearTimeout(id);
@@ -626,11 +630,15 @@ async function checkConnection() {
       isHardwareConnected = true;
       if (badge) badge.className = 'conn-status';
       if (text) text.textContent = 'ESP32 Online';
-      addLog(`Berhasil terhubung ke ESP32 (${esp32Url})!`, 'ok');
+      addLog(`Terhubung ke ESP32 (${esp32Url})!`, 'ok');
+      pollESP32();
       return;
+    } else {
+      addLog(`Respon ESP32: HTTP ${res ? res.status : 'Error'}`, 'bad');
     }
   } catch (err) {
     console.warn('Check connection error:', err);
+    addLog(`Gagal connect: ${err.message || err}`, 'bad');
   }
 
   isHardwareConnected = false;
