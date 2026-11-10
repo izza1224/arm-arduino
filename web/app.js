@@ -2,7 +2,7 @@
  * App.js - Full Interactive Controller & Sequencer matching Image 1 & 2 Reference
  */
 
-import { Robot3D } from './robot3d.js';
+import { Robot3D } from './robot3d.js?v=20261110_2';
 
 let robot3d = null;
 let isHardwareConnected = false;
