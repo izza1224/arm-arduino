@@ -56,10 +56,13 @@ bool arahBalik  = false;    // balik arah putaran
 int  kecKonv    = 70;       // kecepatan conveyor (persen)
 unsigned long tSensor = 0;
 
-// status conveyor: jalan -> tahan (berhenti sebentar) -> lewat (jalan, abaikan sensor sampai barang pergi)
-enum KState { K_JALAN, K_TAHAN, K_LEWAT };
+// status conveyor:
+// K_JALAN: conveyor bergerak normal
+// K_TUNGGU_AMBIL: barang sampai di sensor, conveyor MATI TOTAL, menunggu barang diambil (timer BELUM jalan)
+// K_COUNTDOWN: barang sudah diambil / sensor kosong, countdown berjalan selama holdDetik detik sebelum conveyor jalan lagi
+enum KState { K_JALAN = 0, K_TUNGGU_AMBIL = 1, K_COUNTDOWN = 2 };
 KState kState = K_JALAN;
-unsigned long tTahan = 0;
+unsigned long tCountdown = 0;
 
 WebServer server(80);
 Preferences prefs;
@@ -120,21 +123,47 @@ void konveyorTick() {
 
   switch (kState) {
     case K_JALAN:
-      if (konvOn && sensorStab) {                 // barang sampai di ujung
-        if (holdDetik > 0) { kState = K_TAHAN; tTahan = now; }
-        else konvOn = false;                      // 0 detik = berhenti terus sampai ditekan Jalan
+      if (konvOn && sensorStab) {
+        // Barang sampai di sensor: conveyor LANGSUNG MATI TOTAL!
+        if (holdDetik > 0) {
+          kState = K_TUNGGU_AMBIL;
+          // Hitungan mundur BELUM berjalan selama barang masih ada di sensor
+        } else {
+          // holdDetik = 0: berhenti permanen sampai ditekan tombol Jalan
+          konvOn = false;
+          kState = K_JALAN;
+        }
       }
       break;
-    case K_TAHAN:
-      if (!konvOn) kState = K_JALAN;              // dihentikan manual
-      else if (now - tTahan >= (unsigned long)holdDetik * 1000UL) kState = K_LEWAT;
+
+    case K_TUNGGU_AMBIL:
+      if (!konvOn) {
+        // Dihentikan manual oleh pengguna
+        kState = K_JALAN;
+      } else if (!sensorStab) {
+        // BARANG SUDAH DIAMBIL / SENSOR SUDAH TIDAK TERDETEKSI!
+        // Mulai hitung mundur sekarang!
+        kState = K_COUNTDOWN;
+        tCountdown = now;
+      }
       break;
-    case K_LEWAT:
-      if (!konvOn || !sensorStab) kState = K_JALAN;   // barang sudah pergi / diambil
+
+    case K_COUNTDOWN:
+      if (!konvOn) {
+        kState = K_JALAN;
+      } else if (sensorStab) {
+        // Jika ada barang terdeteksi lagi sebelum countdown selesai
+        kState = K_TUNGGU_AMBIL;
+      } else if (now - tCountdown >= (unsigned long)holdDetik * 1000UL) {
+        // Waktu jeda setelah barang diambil telah selesai!
+        // Conveyor MULAI BERJALAN KEMBALI
+        kState = K_JALAN;
+      }
       break;
   }
 
-  bool jalan = konvOn && kState != K_TAHAN && !(kState == K_JALAN && sensorStab);
+  // Motor hanya benar-benar berputar jika konvOn aktif, state K_JALAN, dan tidak ada barang menghalangi sensor
+  bool jalan = konvOn && (kState == K_JALAN) && !sensorStab;
   if (jalan != motorJalan) {
     motorJalan = jalan;
     terapkanMotor();
@@ -200,9 +229,11 @@ void sendState() {
   j += ",\"kh\":"; j += holdDetik;
   j += ",\"ksn\":"; j += (int)kState;
   long sisa = 0;
-  if (kState == K_TAHAN) {
-    sisa = (long)holdDetik * 1000 - (long)(millis() - tTahan);
+  if (kState == K_COUNTDOWN) {
+    sisa = (long)holdDetik * 1000 - (long)(millis() - tCountdown);
     if (sisa < 0) sisa = 0;
+  } else if (kState == K_TUNGGU_AMBIL) {
+    sisa = (long)holdDetik * 1000;
   }
   j += ",\"kt\":"; j += (sisa + 999) / 1000;
   j += ",\"steps\":[";
@@ -416,9 +447,9 @@ function paint(){
  $('cnt').textContent=S.steps.length+' langkah';
 
  const kst=$('kst');
- if(S.ksn==1){kst.textContent='Barang di ujung: berhenti '+S.kt+' dtk lagi';}
+ if(S.ksn==1){kst.textContent='Barang di sensor: menunggu diambil';}
+ else if(S.ksn==2){kst.textContent='Barang diambil: mulai jalan '+S.kt+' dtk lagi';}
  else if(S.kr){kst.textContent='Berjalan';}
- else if(S.kv&&S.ks){kst.textContent='Berhenti: ada barang di ujung';}
  else{kst.textContent='Berhenti';}
  const se=$('ksen');
  se.textContent=S.ks?'Sensor: ADA barang':'Sensor: kosong';

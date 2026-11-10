@@ -26,13 +26,15 @@ export class Robot3D {
       reverse: false,
       holdSeconds: 5,  // seconds to hold on sensor trigger (0 = wait forever)
       holdTimer: 0,    // active countdown
-      isHolding: false
+      isHolding: false,
+      state: 'JALAN'   // 'JALAN' | 'WAIT_PICK' | 'COUNTDOWN'
     };
 
     // Sensor & Cargo state
     this.sensorTriggered = false;
     this.onSensorChange = null;
     this.onHoldTimerTick = null;
+    this.onConveyorStateChange = null;
 
     // Cargo blocks on conveyor
     this.cargos = [];
@@ -105,6 +107,20 @@ export class Robot3D {
     // Responsive Resize Observer
     this.resizeObserver = new ResizeObserver(() => this.onResize());
     this.resizeObserver.observe(this.container);
+
+    // Klik balok kargo di canvas 3D untuk mengambil barang
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+    this.container.addEventListener('pointerdown', (e) => {
+      const rect = this.container.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const hits = this.raycaster.intersectObjects(this.cargos, true);
+      if (hits.length > 0) {
+        this.pickCargo();
+      }
+    });
 
     // Render loop
     this.clock = new THREE.Clock();
@@ -550,6 +566,12 @@ export class Robot3D {
     this.conveyor.reverse = reverse;
     this.conveyor.holdSeconds = holdSeconds;
     if (running) {
+      if (this.conveyor.state !== 'WAIT_PICK' && this.conveyor.state !== 'COUNTDOWN') {
+        this.conveyor.state = 'JALAN';
+        this.conveyor.isHolding = false;
+      }
+    } else {
+      this.conveyor.state = 'JALAN';
       this.conveyor.isHolding = false;
     }
   }
@@ -581,8 +603,37 @@ export class Robot3D {
     }
     this.sensorTriggered = false;
     this.sensorLed.material = this.materials.irLedOff;
+    this.conveyor.state = 'JALAN';
     this.conveyor.isHolding = false;
+    this.conveyor.holdTimer = 0;
     if (this.onSensorChange) this.onSensorChange(false);
+    if (this.onHoldTimerTick) this.onHoldTimerTick(0);
+    if (this.onConveyorStateChange) this.onConveyorStateChange('JALAN', 0);
+  }
+
+  pickCargo() {
+    // Dipanggil saat barang diambil (oleh capit robot, klik balok, atau tombol)
+    if (this.cargos[0]) {
+      this.cargos[0].visible = false;
+      this.cargos[0].position.set(this.conveyorMinX, this.cargoY, 0);
+    }
+    this.sensorTriggered = false;
+    this.sensorLed.material = this.materials.irLedOff;
+    if (this.onSensorChange) this.onSensorChange(false);
+
+    if (this.conveyor.running && this.conveyor.holdSeconds > 0) {
+      // Barang sudah diambil: MULAI HITUNG MUNDUR SEKARANG!
+      this.conveyor.state = 'COUNTDOWN';
+      this.conveyor.isHolding = true;
+      this.conveyor.holdTimer = this.conveyor.holdSeconds;
+      if (this.onHoldTimerTick) this.onHoldTimerTick(this.conveyor.holdTimer);
+      if (this.onConveyorStateChange) this.onConveyorStateChange('COUNTDOWN', this.conveyor.holdTimer);
+    } else {
+      this.conveyor.state = 'JALAN';
+      this.conveyor.isHolding = false;
+      if (this.cargos[0]) this.cargos[0].visible = true;
+      if (this.onConveyorStateChange) this.onConveyorStateChange('JALAN', 0);
+    }
   }
 
   applyAnglesToArm(arm, angles) {
@@ -628,10 +679,10 @@ export class Robot3D {
     this.applyAnglesToArm(this.ghostArm, this.target);
 
     // 2. Conveyor Animation & IR Sensor Collision Detection
-    if (this.conveyor.running && !this.conveyor.isHolding) {
-      const dir = this.conveyor.reverse ? -1 : 1;
-      const speedNorm = (this.conveyor.speed / 100) * 3.0 * dir;
+    const dir = this.conveyor.reverse ? -1 : 1;
+    const speedNorm = (this.conveyor.speed / 100) * 3.0 * dir;
 
+    if (this.conveyor.running && this.conveyor.state === 'JALAN') {
       // Scroll belt texture
       this.beltTexture.offset.x -= (speedNorm * dt) / 5;
 
@@ -639,6 +690,7 @@ export class Robot3D {
       let itemAtSensor = false;
 
       this.cargos.forEach((cargo) => {
+        if (!cargo.visible) return;
         cargo.position.x += speedNorm * dt;
 
         // Loop cargo when it falls off ends
@@ -662,10 +714,20 @@ export class Robot3D {
           this.sensorLed.material = this.materials.irLedOn;
           if (this.onSensorChange) this.onSensorChange(true);
 
-          // Trigger stop hold
-          this.conveyor.isHolding = true;
-          this.conveyor.holdTimer = this.conveyor.holdSeconds;
-          if (this.onHoldTimerTick) this.onHoldTimerTick(this.conveyor.holdTimer);
+          if (this.conveyor.holdSeconds > 0) {
+            // Masuk status WAIT_PICK: Conveyor mati total, timer BELUM berjalan!
+            this.conveyor.state = 'WAIT_PICK';
+            this.conveyor.isHolding = true;
+            this.conveyor.holdTimer = this.conveyor.holdSeconds;
+            if (this.onHoldTimerTick) this.onHoldTimerTick(this.conveyor.holdSeconds);
+            if (this.onConveyorStateChange) this.onConveyorStateChange('WAIT_PICK', this.conveyor.holdSeconds);
+          } else {
+            // holdSeconds = 0: berhenti permanen sampai ditekan tombol Jalan
+            this.conveyor.running = false;
+            this.conveyor.isHolding = false;
+            this.conveyor.state = 'JALAN';
+            if (this.onConveyorStateChange) this.onConveyorStateChange('STOP', 0);
+          }
         }
       } else {
         if (this.sensorTriggered) {
@@ -674,28 +736,37 @@ export class Robot3D {
           if (this.onSensorChange) this.onSensorChange(false);
         }
       }
-    } else if (this.conveyor.isHolding) {
-      // Countdown hold timer
+    } else if (this.conveyor.state === 'WAIT_PICK') {
+      // CONVEYOR MATI TOTAL, MENUNGGU BARANG DIAMBIL!
+      // Hitungan timer BELUM berjalan.
+      // Cek apakah capit robot mendekat dan menjepit balok (shoulder > 25 && gripper > 60)
+      if (this.actual.shoulder > 25 && this.actual.gripper > 60) {
+        this.pickCargo();
+      }
+    } else if (this.conveyor.state === 'COUNTDOWN') {
+      // BARANG SUDAH DIAMBIL: HITUNGAN MUNDUR BERJALAN!
       if (this.conveyor.holdSeconds > 0) {
         this.conveyor.holdTimer -= dt;
-        if (this.onHoldTimerTick) {
-          this.onHoldTimerTick(Math.max(0, Math.ceil(this.conveyor.holdTimer)));
-        }
+        const sisa = Math.max(0, Math.ceil(this.conveyor.holdTimer));
+        if (this.onHoldTimerTick) this.onHoldTimerTick(sisa);
+        if (this.onConveyorStateChange) this.onConveyorStateChange('COUNTDOWN', sisa);
 
         if (this.conveyor.holdTimer <= 0) {
-          // Timer finished: automatically resume conveyor!
+          // Timer selesai: otomatis jalankan conveyor kembali!
+          this.conveyor.state = 'JALAN';
           this.conveyor.isHolding = false;
-          this.sensorTriggered = false;
-          this.sensorLed.material = this.materials.irLedOff;
-          if (this.onSensorChange) this.onSensorChange(false);
+          if (this.onConveyorStateChange) this.onConveyorStateChange('JALAN', 0);
 
-          // Nudge cargo slightly forward so it doesn't immediately re-trigger
-          this.cargos.forEach((c) => {
-            if (Math.abs(c.position.x - this.sensorStationX) < 1.3) {
-              c.position.x += 1.6;
-            }
-          });
+          // Munculkan balok baru di pangkal conveyor
+          if (this.cargos[0]) {
+            this.cargos[0].position.set(this.conveyorMinX, this.cargoY, 0);
+            this.cargos[0].visible = true;
+          }
         }
+      } else {
+        this.conveyor.state = 'JALAN';
+        this.conveyor.isHolding = false;
+        if (this.onConveyorStateChange) this.onConveyorStateChange('JALAN', 0);
       }
     }
 

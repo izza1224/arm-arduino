@@ -65,6 +65,13 @@ function startApp() {
     updateConveyorStatusUI();
   };
 
+  // Hook state transition callback from 3D (WAIT_PICK, COUNTDOWN, JALAN)
+  robot3d.onConveyorStateChange = (cState, secRemaining) => {
+    state.conveyor.cState = cState;
+    state.conveyor.holdTimer = secRemaining;
+    updateConveyorStatusUI();
+  };
+
   // Setup Event Listeners
   setupTabs();
   setupJointControls();
@@ -301,18 +308,24 @@ function updateConveyorStatusUI() {
 
   let stateStr = 'Conveyor berhenti';
   if (state.conveyor.running) {
-    if (state.conveyor.holdTimer > 0) {
-      dot.style.color = '#f59e0b';
-      txt.textContent = `Berhenti (${state.conveyor.holdTimer} dtk lagi)`;
-      stateStr = `Conveyor berhenti (${state.conveyor.holdTimer}s)`;
+    if (state.conveyor.cState === 'WAIT_PICK' || (state.conveyor.sensor && state.conveyor.holdTimer > 0)) {
+      // Barang terdeteksi di sensor: Motor conveyor MATI, menunggu barang diambil!
+      if (dot) dot.style.color = '#ef4444';
+      if (txt) txt.textContent = 'Ada barang: Menunggu diambil (Motor Off)';
+      stateStr = 'Ada barang: Menunggu diambil';
+    } else if (state.conveyor.cState === 'COUNTDOWN' || state.conveyor.holdTimer > 0) {
+      // Barang sudah diambil: Countdown sebelum conveyor mulai jalan lagi!
+      if (dot) dot.style.color = '#f59e0b';
+      if (txt) txt.textContent = `Barang diambil: Mulai jalan dlm ${state.conveyor.holdTimer} dtk...`;
+      stateStr = `Mulai jalan dlm ${state.conveyor.holdTimer}s`;
     } else {
-      dot.style.color = '#10b981';
-      txt.textContent = 'Berjalan';
+      if (dot) dot.style.color = '#10b981';
+      if (txt) txt.textContent = 'Berjalan';
       stateStr = `Conveyor berjalan (${state.conveyor.speed}%)`;
     }
   } else {
-    dot.style.color = '#64748b';
-    txt.textContent = 'Berhenti';
+    if (dot) dot.style.color = '#64748b';
+    if (txt) txt.textContent = 'Berhenti';
     stateStr = 'Conveyor berhenti';
   }
 
@@ -589,6 +602,13 @@ function setupViewportTools() {
     });
   });
 
+  const pickCargoBtn = document.getElementById('btn_ambil_cargo');
+  if (pickCargoBtn) {
+    pickCargoBtn.addEventListener('click', () => {
+      robot3d.pickCargo();
+    });
+  }
+
   const resetCargoBtn = document.getElementById('btn_reset_cargo');
   if (resetCargoBtn) {
     resetCargoBtn.addEventListener('click', () => {
@@ -687,10 +707,13 @@ async function pollESP32() {
     }
 
     // Sync conveyor
-    if (typeof data.kr !== 'undefined') {
-      state.conveyor.running = Boolean(data.kr);
+    if (typeof data.kr !== 'undefined' || typeof data.kv !== 'undefined') {
+      state.conveyor.running = Boolean(typeof data.kv !== 'undefined' ? data.kv : data.kr);
       state.conveyor.sensor = Boolean(data.ks);
       state.conveyor.holdTimer = data.kt || 0;
+      if (data.ksn === 1) state.conveyor.cState = 'WAIT_PICK';
+      else if (data.ksn === 2) state.conveyor.cState = 'COUNTDOWN';
+      else state.conveyor.cState = 'JALAN';
       updateConveyorStatusUI();
       updateSensorUI(Boolean(data.ks));
     }
