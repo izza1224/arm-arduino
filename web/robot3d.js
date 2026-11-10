@@ -73,15 +73,15 @@ export class Robot3D {
       console.warn('RoomEnvironment skipped:', e);
     }
 
-    // Camera - comfortably framed to view both elevated conveyor and robot arm
+    // Camera - comfortably framed to view both conveyor and robot arm
     this.camera = new THREE.PerspectiveCamera(34, w / h, 0.1, 400);
-    this.camera.position.set(0, 18, 40);
+    this.camera.position.set(0, 16, 38);
 
     // Orbit Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.07;
-    this.controls.target.set(1.7, 6.5, 0.5);
+    this.controls.target.set(0, 4.0, 1.5);
     this.controls.maxPolarAngle = Math.PI / 2 - 0.03;
     this.controls.minDistance = 8;
     this.controls.maxDistance = 140; // Allow wide zoom-out cleanly
@@ -435,272 +435,134 @@ export class Robot3D {
   }
 
   /**
-   * Build Front Conveyor Belt Assembly
-   * Elevated height (height = 9.5) to align directly with robot arm pick/place height (Y ~ 10.7)
-   * Length = 12.0 and positioned at (X = 1.7, Z = 2.35) for exact corner-to-corner pick & place:
-   *  - Pick corner at X = +4.54 (with IR optical sensor & laser)
-   *  - Place corner at X = -4.53 (opposite corner where robot places box)
+   * Build Front Conveyor Belt Assembly (Previous Clean Style, Slightly Elevated)
+   * Placed horizontally along X-axis in front of the robot (z = 4.5)
+   * Length = 28 (original width and length), height = 5.2 (elevated slightly for better pick alignment)
    */
   initFrontConveyor() {
     this.conveyorGroup = new THREE.Group();
-    this.conveyorGroup.position.set(1.7, 0, 2.35);
+    this.conveyorGroup.position.set(0, 0, 4.5);
 
-    const length = 12.0;
-    const width = 4.6;
-    const height = 9.5;
+    const length = 28;
+    const width = 4.8;
+    const height = 5.2;
 
-    // 1. Heavy Industrial Aluminum Side Frame Extrusions
-    const sideBeamGeo = new THREE.BoxGeometry(length, 1.1, 0.45);
-    for (const z of [-width / 2 + 0.22, width / 2 - 0.22]) {
-      // Main brushed aluminum structural extrusion
-      const beam = new THREE.Mesh(sideBeamGeo, this.materials.aluminum);
-      beam.position.set(0, height + 0.25, z);
-      beam.castShadow = true;
-      beam.receiveShadow = true;
-      this.conveyorGroup.add(beam);
-
-      // Black T-Slot accent inset line
-      const slot = new THREE.Mesh(new THREE.BoxGeometry(length, 0.22, 0.48), this.materials.graphite);
-      slot.position.set(0, height + 0.25, z);
-      this.conveyorGroup.add(slot);
-
-      // Cyan industrial guide rail riser brackets
-      for (const x of [-length / 2 + 1.2, 0, length / 2 - 1.2]) {
-        const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.0, 0.22), this.materials.cyan);
-        bracket.position.set(x, height + 0.85, z + (z > 0 ? 0.14 : -0.14));
-        this.conveyorGroup.add(bracket);
-      }
-
-      // Tubular Stainless Steel Safety Guide Rail
-      const railBar = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.08, length - 0.6, 16),
-        this.materials.steel
-      );
-      railBar.rotation.z = Math.PI / 2;
-      railBar.position.set(0, height + 1.12, z + (z > 0 ? 0.14 : -0.14));
-      this.conveyorGroup.add(railBar);
-    }
-
-    // End-zone corner caps
-    for (const x of [-length / 2, length / 2]) {
-      for (const z of [-width / 2 + 0.22, width / 2 - 0.22]) {
-        const cap = new THREE.Mesh(new THREE.BoxGeometry(0.32, 1.15, 0.5), this.materials.graphite);
-        cap.position.set(x, height + 0.25, z);
-        this.conveyorGroup.add(cap);
-      }
-    }
-
-    // 2. Heavy-Duty Stanchion Support Legs with Leveling Feet & Cross-Bracing
-    const legX = [-length / 2 + 1.6, length / 2 - 1.6];
-    const legZ = [-width / 2 + 0.45, width / 2 - 0.45];
+    // 1. Four Black Support Legs with feet
+    const legGeo = new THREE.CylinderGeometry(0.4, 0.48, height, 16);
+    const legX = [-length / 2 + 2.0, length / 2 - 2.0];
+    const legZ = [-width / 2 + 0.4, width / 2 - 0.4];
 
     for (const x of legX) {
-      // Upper and lower cross-members between front and back legs
-      for (const yLevel of [height * 0.35, height * 0.7]) {
-        const crossBeam = new THREE.Mesh(
-          new THREE.BoxGeometry(0.5, 0.5, width - 0.9),
-          this.materials.graphite
-        );
-        crossBeam.position.set(x, yLevel, 0);
-        crossBeam.castShadow = true;
-        this.conveyorGroup.add(crossBeam);
-      }
-
       for (const z of legZ) {
-        // Square vertical structural column
-        const column = new THREE.Mesh(
-          new THREE.BoxGeometry(0.65, height, 0.65),
-          this.materials.graphite
-        );
-        column.position.set(x, height / 2, z);
-        column.castShadow = true;
-        column.receiveShadow = true;
-        this.conveyorGroup.add(column);
-
-        // Chrome adjustment threaded stud
-        const stud = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.2, 0.2, 0.6, 16),
-          this.materials.steel
-        );
-        stud.position.set(x, 0.3, z);
-        this.conveyorGroup.add(stud);
-
-        // Machined circular leveling foot pad
-        const footPad = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.7, 0.75, 0.3, 24),
-          this.materials.aluminum
-        );
-        footPad.position.set(x, 0.15, z);
-        footPad.castShadow = true;
-        this.conveyorGroup.add(footPad);
+        const leg = new THREE.Mesh(legGeo, this.materials.graphite);
+        leg.position.set(x, height / 2, z);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        this.conveyorGroup.add(leg);
       }
     }
 
-    // 3. Precision Turned End Rollers with Pillow Block Bearing Housings
-    const rollerGeo = new THREE.CylinderGeometry(0.58, 0.58, width - 1.1, 32);
-    rollerGeo.rotateX(Math.PI / 2);
+    // 2. Heavy Industrial Side Rails (Black & Steel Trim)
+    const railGeo = new THREE.BoxGeometry(length, 0.85, 0.35);
+    for (const z of [-width / 2, width / 2]) {
+      const rail = new THREE.Mesh(railGeo, this.materials.graphite);
+      rail.position.set(0, height + 0.25, z);
+      rail.castShadow = true;
+      rail.receiveShadow = true;
+      this.conveyorGroup.add(rail);
 
+      // Silver top guide lip
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(length, 0.15, 0.4), this.materials.steel);
+      lip.position.set(0, height + 0.7, z);
+      this.conveyorGroup.add(lip);
+    }
+
+    // 3. Rollers at Both Ends
+    const rollerGeo = new THREE.CylinderGeometry(0.65, 0.65, width - 0.7, 32);
+    rollerGeo.rotateX(Math.PI / 2);
     const leftRoller = new THREE.Mesh(rollerGeo, this.materials.steel);
-    leftRoller.position.set(-length / 2 + 0.6, height + 0.25, 0);
+    leftRoller.position.set(-length / 2 + 0.7, height + 0.2, 0);
     const rightRoller = new THREE.Mesh(rollerGeo, this.materials.steel);
-    rightRoller.position.set(length / 2 - 0.6, height + 0.25, 0);
+    rightRoller.position.set(length / 2 - 0.7, height + 0.2, 0);
     this.conveyorGroup.add(leftRoller);
     this.conveyorGroup.add(rightRoller);
 
-    // Bearing blocks on the ends
-    for (const x of [-length / 2 + 0.6, length / 2 - 0.6]) {
-      for (const z of [-width / 2 + 0.2, width / 2 - 0.2]) {
-        const bearing = new THREE.Mesh(
-          new THREE.BoxGeometry(0.6, 0.7, 0.3),
-          this.materials.cyan
-        );
-        bearing.position.set(x, height + 0.25, z);
-        this.conveyorGroup.add(bearing);
+    // 4. Cyan Motor Unit on the Right Side
+    const motorGeo = new THREE.CylinderGeometry(1.1, 1.1, 2.4, 32);
+    motorGeo.rotateZ(Math.PI / 2);
+    const motor = new THREE.Mesh(motorGeo, this.materials.cyan);
+    motor.position.set(length / 2 + 1.2, height + 0.2, 0);
+    motor.castShadow = true;
+    this.conveyorGroup.add(motor);
 
-        const cap = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.22, 0.22, 0.35, 16),
-          this.materials.steel
-        );
-        cap.rotation.x = Math.PI / 2;
-        cap.position.set(x, height + 0.25, z);
-        this.conveyorGroup.add(cap);
-      }
-    }
-
-    // 4. Sleek Industrial Gear-Motor Unit on the Right Side
-    const motorGroup = new THREE.Group();
-    motorGroup.position.set(length / 2 + 1.25, height + 0.25, 0);
-
-    // Motor cylindrical ribbed body
-    const motorBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.95, 0.95, 2.2, 32),
-      this.materials.cyan
-    );
-    motorBody.rotation.z = Math.PI / 2;
-    motorBody.castShadow = true;
-    motorGroup.add(motorBody);
-
-    // Aluminum cooling fins rings
-    for (let f = -0.7; f <= 0.7; f += 0.28) {
-      const fin = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.05, 1.05, 0.08, 32),
-        this.materials.aluminum
-      );
-      fin.rotation.z = Math.PI / 2;
-      fin.position.x = f;
-      motorGroup.add(fin);
-    }
-
-    // Drive shaft coupling to conveyor roller
-    const coupling = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.45, 0.45, 0.8, 24),
-      this.materials.steel
-    );
-    coupling.rotation.z = Math.PI / 2;
-    coupling.position.x = -1.3;
-    motorGroup.add(coupling);
-
-    // Terminal connection box on top of motor
-    const termBox = new THREE.Mesh(
-      new THREE.BoxGeometry(0.9, 0.6, 0.9),
-      this.materials.graphite
-    );
-    termBox.position.set(0.1, 1.05, 0);
-    motorGroup.add(termBox);
-
-    this.conveyorGroup.add(motorGroup);
-
-    // 5. High-Quality Treaded Belt Texture (Grip pattern)
+    // 5. High-Quality Treaded Belt Texture
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = 128;
+    canvas.height = 128;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#181f2a';
-    ctx.fillRect(0, 0, 256, 256);
-    // Draw segmented textured grip cleats
-    ctx.fillStyle = '#2b3544';
-    for (let x = 0; x < 256; x += 16) {
-      ctx.fillRect(x, 0, 4, 256);
-      ctx.fillStyle = '#222b38';
-      ctx.fillRect(x + 4, 0, 2, 256);
-      ctx.fillStyle = '#2b3544';
+    ctx.fillStyle = '#1c232f';
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.fillStyle = '#2d3748';
+    for (let i = 0; i < 128; i += 12) {
+      ctx.fillRect(i, 0, 3, 128); // transverse traction ridges
     }
     this.beltTexture = new THREE.CanvasTexture(canvas);
     this.beltTexture.wrapS = THREE.RepeatWrapping;
     this.beltTexture.wrapT = THREE.RepeatWrapping;
-    this.beltTexture.repeat.set(8, 1);
+    this.beltTexture.repeat.set(14, 1);
 
     const beltMat = new THREE.MeshStandardMaterial({
       map: this.beltTexture,
-      roughness: 0.8,
+      roughness: 0.82,
       metalness: 0.1
     });
 
-    // Belt top surface exactly at height + 0.45 + 0.125 = 10.075
-    const beltGeo = new THREE.BoxGeometry(length - 1.2, 0.25, width - 0.7);
+    const beltGeo = new THREE.BoxGeometry(length - 1.4, 0.25, width - 0.8);
     this.beltMesh = new THREE.Mesh(beltGeo, beltMat);
-    this.beltMesh.position.set(0, height + 0.45, 0);
+    this.beltMesh.position.set(0, height + 0.42, 0);
     this.beltMesh.castShadow = true;
     this.beltMesh.receiveShadow = true;
     this.conveyorGroup.add(this.beltMesh);
 
-    // 6. Professional Infrared Sensor Station (Right Pick Corner: local X = 4.54)
-    this.sensorStationX = 4.54;
+    // 6. Professional Infrared Sensor (Di ujung kanan dekat motor)
+    this.sensorStationX = 10.5;
     this.sensorGroup = new THREE.Group();
-    this.sensorGroup.position.set(this.sensorStationX, height + 0.6, -width / 2 - 0.4);
+    this.sensorGroup.position.set(this.sensorStationX, height + 0.8, -width / 2 - 0.6);
 
-    // Slotted mounting bracket (Steel + Knurled screw)
-    const mountPost = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.8, 16), this.materials.steel);
-    this.sensorGroup.add(mountPost);
+    // Sensor mounting tower
+    const sensorPost = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.8, 16), this.materials.steel);
+    this.sensorGroup.add(sensorPost);
 
     // Sensor barrel
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.1, 16), this.materials.graphite);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.2, 16), this.materials.graphite);
     barrel.rotation.x = Math.PI / 2;
-    barrel.position.set(0, 0.55, 0.5);
+    barrel.position.set(0, 0.6, 0.6);
     this.sensorGroup.add(barrel);
 
-    // Optical Lens (Ruby Red)
-    const lens = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), this.materials.irBeam);
-    lens.position.set(0, 0.55, 1.05);
-    this.sensorGroup.add(lens);
-
-    // Indicator LED (Top of sensor)
-    this.sensorLed = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), this.materials.irLedOff);
-    this.sensorLed.position.set(0, 0.95, 0.3);
+    // Sensor Active Indicator LED
+    this.sensorLed = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), this.materials.irLedOff);
+    this.sensorLed.position.set(0, 1.0, 0.3);
     this.sensorGroup.add(this.sensorLed);
 
-    // Optical Laser Beam Line across the belt
-    const beamGeo = new THREE.CylinderGeometry(0.035, 0.035, width + 0.4, 8);
+    // Subtle optical beam line across the belt
+    const beamGeo = new THREE.CylinderGeometry(0.04, 0.04, width + 0.4, 8);
     beamGeo.rotateX(Math.PI / 2);
     this.beamLine = new THREE.Mesh(beamGeo, this.materials.irBeam);
-    this.beamLine.position.set(0, 0.55, width / 2 + 0.2);
+    this.beamLine.position.set(0, 0.6, width / 2 + 0.2);
     this.sensorGroup.add(this.beamLine);
-
-    // Opposite Reflector Target Unit on Front Rail
-    const reflector = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 0.7, 0.25),
-      this.materials.amberReflector
-    );
-    reflector.position.set(0, 0.55, width + 0.4);
-    this.sensorGroup.add(reflector);
 
     this.conveyorGroup.add(this.sensorGroup);
 
     // 7. Single Payload White Cube (1 Kotak Kargo)
-    const boxSize = 1.15;
-    this.cargoY = height + 0.45 + 0.125 + boxSize / 2; // = 10.65
-    this.conveyorMinX = -length / 2 + 1.4; // = -4.6 (place corner)
-    this.conveyorMaxX = length / 2 - 1.2;  // = +4.8 (pick corner)
+    const boxSize = 1.2;
+    this.cargoY = height + 0.42 + boxSize / 2;
+    this.conveyorMinX = -length / 2 + 2.5;
+    this.conveyorMaxX = length / 2 - 2.0;
 
     const block = this.createCargoBlock(boxSize);
-    block.position.set(-4.53, this.cargoY, 0.86);
+    block.position.set(this.conveyorMinX, this.cargoY, 0);
     this.conveyorGroup.add(block);
     this.cargos = [block];
-
-    // 8. Placed Cargo Block (Muncul saat robot menaruh kotak di pojok kiri)
-    this.placedCargo = this.createCargoBlock(boxSize);
-    this.placedCargo.visible = false;
-    this.conveyorGroup.add(this.placedCargo);
 
     this.scene.add(this.conveyorGroup);
   }
@@ -749,14 +611,14 @@ export class Robot3D {
 
   setView(mode) {
     const views = {
-      iso: [24, 22, 32],
-      front: [1.7, 16, 38],
-      side: [36, 16, 2.0],
-      top: [1.71, 46, 2.0]
+      iso: [24, 18, 30],
+      front: [0, 14, 38],
+      side: [38, 14, 2.0],
+      top: [0.01, 46, 2.0]
     };
     const target = views[mode] || views.iso;
     this.cameraGoal = new THREE.Vector3(...target);
-    this.controls.target.set(1.7, 6.5, 0.5);
+    this.controls.target.set(0, 4.0, 1.5);
   }
 
   resetView() {
@@ -772,7 +634,7 @@ export class Robot3D {
       this.placedCargo.visible = false;
     }
     if (this.cargos[0]) {
-      this.cargos[0].position.set(-4.53, this.cargoY, 0.86);
+      this.cargos[0].position.set(this.conveyorMinX, this.cargoY, 0);
       this.cargos[0].visible = true;
     }
     this.sensorTriggered = false;
@@ -863,8 +725,13 @@ export class Robot3D {
       this.cargos[0].getWorldPosition(cargoWorldPos);
       const distToCargo = gripperWorldPos.distanceTo(cargoWorldPos);
 
-      // Jarak dekat (< 2.2) dan capit menutup (gripper >= 45)
-      if (distToCargo < 2.2 && (this.current.gripper >= 45 || this.actual.gripper >= 45)) {
+      // Capit berada di sekitar balok (jarak < 4.5) dan capit menutup (gripper >= 40)
+      // atau saat lengan dalam posisi ambil di sensor (WAIT_PICK dan shoulder > 25 && gripper > 45)
+      const isNearCargo = distToCargo < 4.5;
+      const isClamping = this.current.gripper >= 40 || this.actual.gripper >= 40;
+      const isPickPose = this.conveyor.state === 'WAIT_PICK' && this.actual.shoulder > 25 && this.actual.gripper > 45;
+
+      if ((isNearCargo && isClamping) || isPickPose) {
         this.isGrasping = true;
         if (this.robotArm.heldBox) this.robotArm.heldBox.visible = true;
         this.cargos[0].visible = false;
@@ -878,10 +745,10 @@ export class Robot3D {
         this.isGrasping = false;
         if (this.robotArm.heldBox) this.robotArm.heldBox.visible = false;
 
-        // Taruh kotak di atas conveyor pada titik jatuhnya capit (pojok kiri)
+        // Taruh kotak di atas conveyor pada titik jatuhnya capit
         const localDrop = this.conveyorGroup.worldToLocal(gripperWorldPos.clone());
         const dropX = Math.max(this.conveyorMinX, Math.min(this.conveyorMaxX, localDrop.x));
-        const dropZ = Math.max(-1.5, Math.min(1.5, localDrop.z));
+        const dropZ = Math.max(-1.8, Math.min(1.8, localDrop.z));
 
         if (this.cargos[0]) {
           this.cargos[0].position.set(dropX, this.cargoY, dropZ);
@@ -914,7 +781,7 @@ export class Robot3D {
 
         // Check proximity to IR optical beam line
         const dist = Math.abs(cargo.position.x - this.sensorStationX);
-        if (dist < 0.45) {
+        if (dist < 1.2) {
           itemAtSensor = true;
         }
       }
@@ -966,9 +833,9 @@ export class Robot3D {
           this.conveyor.isHolding = false;
           if (this.onConveyorStateChange) this.onConveyorStateChange('JALAN', 0);
 
-          // Jika balok belum ditaruh robot dan tidak sedang digenggam, munculkan balok di pojok kiri
+          // Jika balok belum ditaruh robot dan tidak sedang digenggam, munculkan balok di pangkal conveyor
           if (!this.isGrasping && this.cargos[0] && !this.cargos[0].visible) {
-            this.cargos[0].position.set(-4.53, this.cargoY, 0.86);
+            this.cargos[0].position.set(this.conveyorMinX, this.cargoY, 0);
             this.cargos[0].visible = true;
           }
         }

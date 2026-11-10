@@ -2,7 +2,7 @@
  * App.js - Full Interactive Controller & Sequencer matching Image 1 & 2 Reference
  */
 
-import { Robot3D } from './robot3d.js?v=20261110_2';
+import { Robot3D } from './robot3d.js';
 
 let robot3d = null;
 let isHardwareConnected = false;
@@ -35,7 +35,13 @@ const state = {
     sensor: false
   },
   sequencer: {
-    steps: [],
+    steps: (() => {
+      try {
+        return JSON.parse(localStorage.getItem('robot_arm_steps') || '[]');
+      } catch (e) {
+        return [];
+      }
+    })(),
     speed: 35,
     loop: false,
     playing: false,
@@ -43,6 +49,14 @@ const state = {
     defaultDelay: 800
   }
 };
+
+function saveStepsToStorage() {
+  try {
+    localStorage.setItem('robot_arm_steps', JSON.stringify(state.sequencer.steps));
+  } catch (e) {
+    console.warn('Gagal menyimpan langkah ke localStorage:', e);
+  }
+}
 
 // Simulation sequence playback timer
 let simPlayTimer = null;
@@ -403,6 +417,7 @@ function setupSequencerControls() {
   btnClear.addEventListener('click', () => {
     if (confirm('Hapus SEMUA langkah?')) {
       state.sequencer.steps = [];
+      saveStepsToStorage();
       renderStepsList();
       if (isHardwareConnected) sendESP32Command('/clear');
     }
@@ -413,6 +428,7 @@ function addStepDirect(jointIdx, angle) {
   const delay = state.sequencer.defaultDelay;
   const newStep = [jointIdx, angle, 0, delay]; // [s, a, v, j]
   state.sequencer.steps.push(newStep);
+  saveStepsToStorage();
   renderStepsList();
 
   const jointName = JOINT_NAMES[JOINTS[jointIdx]];
@@ -483,6 +499,7 @@ window.editStep = (idx) => {
   if (newAngle !== null && !isNaN(parseInt(newAngle))) {
     const val = Math.max(0, Math.min(JOINT_MAX[JOINTS[st[0]]], parseInt(newAngle)));
     st[1] = val;
+    saveStepsToStorage();
     renderStepsList();
     if (isHardwareConnected) {
       sendESP32Command(`/edit?n=${idx}&s=${st[0]}&a=${val}&v=${st[2]}&j=${st[3]}`);
@@ -496,6 +513,7 @@ window.moveStep = (idx, dir) => {
   const temp = state.sequencer.steps[idx];
   state.sequencer.steps[idx] = state.sequencer.steps[targetIdx];
   state.sequencer.steps[targetIdx] = temp;
+  saveStepsToStorage();
   renderStepsList();
   if (isHardwareConnected) sendESP32Command(`/mv?n=${idx}&d=${dir}`);
 };
@@ -503,6 +521,7 @@ window.moveStep = (idx, dir) => {
 window.deleteStep = (idx) => {
   if (confirm(`Hapus langkah #${idx + 1}?`)) {
     state.sequencer.steps.splice(idx, 1);
+    saveStepsToStorage();
     renderStepsList();
     if (isHardwareConnected) sendESP32Command(`/del?n=${idx}`);
   }
@@ -719,10 +738,11 @@ async function pollESP32() {
     }
 
     // Sync steps
-    if (data.steps && JSON.stringify(data.steps) !== JSON.stringify(state.sequencer.steps)) {
+    if (data.steps && data.steps.length > 0 && JSON.stringify(data.steps) !== JSON.stringify(state.sequencer.steps)) {
       state.sequencer.steps = data.steps;
       state.sequencer.playing = Boolean(data.play);
       state.sequencer.currentStepIdx = data.idx || 0;
+      saveStepsToStorage();
       renderStepsList();
     }
 
