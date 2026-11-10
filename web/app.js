@@ -6,12 +6,27 @@ import { Robot3D } from './robot3d.js';
 
 let robot3d = null;
 let isHardwareConnected = false;
-let esp32Url = localStorage.getItem('esp32_url') || 'http://10.108.123.171';
-// Gunakan IP asli ESP32 yang aktif di jaringan
+let esp32Url = localStorage.getItem('esp32_url') || 'http://10.111.116.171';
 if (!esp32Url || esp32Url.includes('armrobot.local') || esp32Url.includes('192.168.43.120')) {
-  esp32Url = 'http://10.108.123.171';
+  esp32Url = 'http://10.111.116.171';
   localStorage.setItem('esp32_url', esp32Url);
 }
+
+// 12 Urutan langkah bawaan milik user (otomatis muncul dan tidak pernah hilang saat refresh/offline)
+const DEFAULT_STEPS = [
+  [0, 134, 0, 800], // 1. Base 134°
+  [1, 57, 0, 800],  // 2. Siku 57°
+  [2, 78, 0, 800],  // 3. Lengan atas 78°
+  [3, 95, 0, 800],  // 4. Capit 95°
+  [1, 19, 0, 800],  // 5. Siku 19°
+  [2, 20, 0, 800],  // 6. Lengan atas 20°
+  [0, 71, 0, 800],  // 7. Base 71°
+  [1, 41, 0, 800],  // 8. Siku 41°
+  [2, 110, 0, 800], // 9. Lengan atas 110°
+  [3, 0, 0, 800],   // 10. Capit 0°
+  [1, 9, 0, 800],   // 11. Siku 9°
+  [2, 0, 0, 800]    // 12. Lengan atas 0°
+];
 let pollTimer = null;
 let pollCount = 0;
 let completedCycles = 0;
@@ -37,10 +52,10 @@ const state = {
   sequencer: {
     steps: (() => {
       try {
-        return JSON.parse(localStorage.getItem('robot_arm_steps') || '[]');
-      } catch (e) {
-        return [];
-      }
+        const saved = JSON.parse(localStorage.getItem('robot_arm_steps') || '[]');
+        if (Array.isArray(saved) && saved.length > 0) return saved;
+      } catch (e) {}
+      return DEFAULT_STEPS.slice();
     })(),
     speed: 35,
     loop: false,
